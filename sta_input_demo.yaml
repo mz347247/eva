@@ -1,0 +1,9 @@
+machine: personal-server
+bench: IC
+start_date: 20200101
+end_date: 20201231 
+eval_alpha: [sta_90_1_1_1_l2, sta_90_1_1_1_mbd]
+target_return: actualRet90s
+target_cut: top5p
+lookback_window: 180
+save_path: /data/home/marlowe/Marlowe/sta_eval
