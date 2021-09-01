@@ -9,56 +9,43 @@ from CephClient import CephClient
 from multiprocessing import Pool
 from functools import partial
 from tqdm import tqdm
+from HPCutils import get_job_list
+from eval import StaAlphaEval
 
 import yaml
 
 perc = [.01, .05, .1, .25, .5, .75, .9, .95, .99]
 
-class sta_alpha_eval():
-    def __init__(self, sta_input):
-        f = open(sta_input, 'r', encoding='utf-8')
-        cfg = f.read()
-        dict_yaml = yaml.full_load(cfg)
-        f.close()
+class StaAlphaEvalMap(StaAlphaEval):
 
-        self.machine = dict_yaml['machine']
-        self.bench = dict_yaml['bench']
-        self.start_date = str(dict_yaml['start_date'])
-        self.end_date = str(dict_yaml['end_date'])
-        self.eval_alpha = dict_yaml['eval_alpha']
-        self.target_ret = dict_yaml['target_return']
-        self.target_cut = dict_yaml['target_cut']
-        self.lookback_window = dict_yaml['lookback_window']
-        self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
-        self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}')
+    def __init__(self, sta_input):
+        super().__init__(sta_input)
+
         try:
             self.target_horizon = int(re.search(r"\d+", self.target_ret).group(0))
         except (AttributeError, ValueError):
             raise ValueError(f"Invalid Input target_ret: {self.target_ret}") 
 
-        try:
-            self.target_number = int(4800 * int(re.search(r"\d+", self.target_cut).group(0)) / 100)
-        except (AttributeError, ValueError):
-            raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
+        # top5p or top240
+        if self.target_cut.endswith("p"):
+            self.target_number = None
+            try:
+                self.target_ratio = int(re.search(r"\d+", self.target_cut).group(0))
+                assert self.target_ratio < 100
+            except (AttributeError, ValueError):
+                raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
+        else:
+            self.target_ratio = None
+            try:
+                self.target_number = int(re.search(r"\d+", self.target_cut).group(0))
+            except (AttributeError, ValueError):
+                raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
         
         self.eval_alpha_dict = defaultdict(list)
         for alpha in self.eval_alpha:
             self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
 
-
     def generate_daily_sta_cutoff(self, date):
-
-        if self.machine=="HPC":
-            a = AShareReader()
-            c = CephClient()
-        elif self.machine=="personal-server":
-            a = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                             config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
-                             KEYRING_LOC = '{0}/dfs/ceph.key.keyring'.format(os.environ['HOME']))
-            c = CephClient(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                           config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
-                           KEYRING_LOC = '{0}/dfs/ceph.key.keyring'.format(os.environ['HOME']))
-
         df_daily = []
         df_intra = []
 
@@ -67,7 +54,7 @@ class sta_alpha_eval():
             buy_sta_cols = []
             sell_sta_cols = []
             for ix, sta in enumerate(sta_ls):
-                tmp_sta = c.read_file(f"/sta_alpha_eq_cn/{sta}/IC/sta{date}.parquet", "sta_alpha_eq_cn", sta)
+                tmp_sta = self.sta_reader.read_file(f"/sta_alpha_eq_cn/{sta}/IC/sta{date}.parquet", "sta_alpha_eq_cn", sta)
                 tmp_sta = tmp_sta.rename(columns={"yHatBuy": f"yHatBuy_{sta[4:]}", "yHatSell": f"yHatSell_{sta[4:]}"})
                 buy_sta_cols.append(f"yHatBuy_{sta[4:]}")
                 sell_sta_cols.append(f"yHatSell_{sta[4:]}")
@@ -77,11 +64,11 @@ class sta_alpha_eval():
                     df_sta = pd.merge(df_sta, tmp_sta, on=['skey', 'date', 'ordering'], how='outer', validate='one_to_one')
             del tmp_sta
 
-            universe = a.Read_Stock_Daily('com_md_eq_cn', f"chnuniv_{self.bench.lower()}", date, date).skey.unique()
+            universe = self.stock_reader.Read_Stock_Daily('com_md_eq_cn', f"chnuniv_{self.bench.lower()}", date, date).skey.unique()
             df_sta = df_sta[df_sta.skey.isin(universe)].reset_index(drop=True)
 
             # TODO: no need to read ask5q and bid5q if we have near limit status in DFS
-            df_md = a.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_{sta_type}', start_date=date, end_date=date, 
+            df_md = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_{sta_type}', start_date=date, end_date=date, 
                                        stock_list=universe, cols_list=['skey', 'date', 'time', 'clockAtArrival', 'ordering', 
                                                                        'ask1p', 'ask1q', 'bid1p', 'bid1q', 'ask5q', 'bid5q',
                                                                        'cum_volume', 'cum_amount'])
@@ -121,21 +108,30 @@ class sta_alpha_eval():
 
                 df_side.columns = basic_cols + sta_ls + ['availNtl', self.target_ret]
                 
-                stat_data_all = df_side.groupby(['skey', 'exchange', 'date'])[sta_ls].agg([('mean', 'mean'), ('std', 'std'),('skew','skew'),('kurtosis',lambda x: x.kurtosis()),
-                                                                                           ('75p', lambda x: x.quantile(.75)), ('90p', lambda x: x.quantile(.90)),
-                                                                                           ('95p', lambda x: x.quantile(.95)), ('99p', lambda x: x.quantile(.99)),
-                                                                                           ('min', 'min'), ('max', 'max')])
+                stat_data_all = (df_side.groupby(['skey', 'exchange', 'date'])[sta_ls + [self.target_ret]]
+                                        .agg([('sum_x', 'sum'), ('count_x', 'count'),
+                                              ('sum_x2', lambda x: (x**2).sum()),
+                                              ('sum_x3', lambda x: (x**3).sum()),
+                                              ('sum_x4', lambda x: (x**4).sum()),
+                                              ('hist_x', lambda x: pd.cut(x, bins=np.arange(-0.003,0.00305, 0.0001), 
+                                                                          labels=np.arange(-29.5, 30, 1)).value_counts().to_dict())]))
                 stat_data_all.columns.names = ["sta_cat", ""]
                 stat_data_all = stat_data_all.stack("sta_cat").reset_index()
+                stat_data_all['sta_cat'] = np.where(stat_data_all['sta_cat']==self.target_ret, self.target_ret + "_" + sta_type,
+                                                    stat_data_all['sta_cat'])
                 stat_data_all['side'] = side
 
                 df_side = df_side.melt(id_vars=basic_cols + ['availNtl', self.target_ret], value_vars=sta_ls, 
                                        var_name="sta_cat", value_name='sta')
 
                 total_number = 4800 if sta_type=="l2" else 14400
+                if self.target_number is None:
+                    target_number = int(total_number * self.target_ratio / 100)
+                else:
+                    target_number = self.target_number
                 df_cutoff = (df_side.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                     .apply(lambda x: find_top_percent(x, col="sta",
-                                                                      target_number=self.target_number, 
+                                                                      target_number=target_number, 
                                                                       total_number=total_number))
                                     .reset_index(drop=True))
                 df_cutoff['side'] = side
@@ -159,12 +155,6 @@ class sta_alpha_eval():
 
         # save df_daily
         df_daily = pd.concat(df_daily).reset_index(drop=True)
-        for col in ['mean','std','75p','90p','95p','99p','min','max',
-                    'yHatHurdle','yHatAvg', 'actualRetAvg', 'vwActualRetAvg']:
-            df_daily[col] = df_daily[col].apply(lambda x: '%.2f'%(x*10000))
-        for col in ['mean','std','skew','kurtosis','75p','90p','95p','99p','min','max',
-                    'availNtlAvg','availNtlSum','yHatHurdle','yHatAvg', 'actualRetAvg', 'vwActualRetAvg']:
-            df_daily[col] = df_daily[col].astype('float32')
         os.makedirs(os.path.join(self.cutoff_path, 'daily'), exist_ok = True)
         df_daily.to_pickle(os.path.join(self.cutoff_path, 'daily', f'df_{self.target_cut}_{date}.pkl'), protocol = 4)
 
@@ -174,10 +164,11 @@ class sta_alpha_eval():
         for col in ['date','skey','mins_since_open']:
             df_intra[col] = df_intra[col].astype('int32')
         
-        df_intra_stat = (df_intra.groupby(['skey','exchange','date','side','sta_cat','mins_since_open'])[['availNtl']]
-                            .agg(countOppo=('availNtl', "count"),
-                                 availNtlSum=('availNtl', 'sum')))
-        df_intra_stat[f'vwActualRetAvg'] = (df_intra.groupby(['skey','exchange','date','side','sta_cat','mins_since_open'])
+        df_intra_stat = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'])[['skey', 'availNtl']]
+                                 .agg(countOppo=('skey', 'count'),
+                                      countStock=('skey', 'nunique'),
+                                      availNtlSum=('availNtl', 'sum')))
+        df_intra_stat[f'vwActualRetAvg'] = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'])
                                                     .apply(lambda x: weighted_average(x[self.target_ret],
                                                                                       weights=x['availNtl'])))
         df_intra_stat = df_intra_stat.reset_index()
@@ -188,9 +179,10 @@ class sta_alpha_eval():
         if self.machine=='personal-server':
             with NestablePool(32) as p:
                 p.map(self.generate_daily_sta_cutoff, dates)
-        else:
-            raise NotImplementedError
-
+        elif self.machine=='HPC':
+            jobs = get_job_list(dates)
+            for job in jobs:
+                self.generate_daily_sta_cutoff(job)
 
 def _get_eva_md(tstock, forward_period, backward_period):
     tstock['index'] = tstock.index.values
@@ -252,18 +244,17 @@ def _get_eva_md(tstock, forward_period, backward_period):
             
 
 if __name__ == "__main__":
-    sta_input = '/home/marlowe/Marlowe/eva/sta_input_demo.yaml'
-    sta_eval_run = sta_alpha_eval(sta_input)
+    sta_input = '/home/marlowe_zhong/eva/sta_input_demo.yaml'
+    sta_eval_run = StaAlphaEvalMap(sta_input)
 
     # sta_eval_run.generate_daily_sta_cutoff(20200120)
-    a = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                     config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
-                     KEYRING_LOC = '{0}/dfs/ceph.key.keyring'.format(os.environ['HOME']))
 
-    dates = a.Read_Stock_Daily("com_md_eq_cn", "mdbar1d_jq", start_date=int(sta_eval_run.start_date), end_date=int(sta_eval_run.end_date),
-                               stock_list=[1000905], cols_list=['date'])['date'].unique()
+    dates = sta_eval_run.stock_reader.Read_Stock_Daily("com_md_eq_cn", "mdbar1d_jq", 
+                                                       start_date=int(sta_eval_run.start_date), 
+                                                       end_date=int(sta_eval_run.end_date),
+                                                       stock_list=[1000905], cols_list=['date'])['date'].unique()
     # dates = [20200102, 20200103, 20200106, 20200107]
-    
+    print(len(dates))
     sta_eval_run.generate_sta_cutoff(dates)
 
     # partial_func = partial(_get_daily_sta_cutoff, sta_input=sta_input)

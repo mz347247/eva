@@ -14,41 +14,15 @@ from matplotlib.backends.backend_pdf import PdfPages
 import plotly.io as io
 import plotly.express as px
 import plotly.graph_objects as go
+from eval import StaAlphaEval
 
 import yaml
 
 perc = [.01, .05, .1, .25, .5, .75, .9, .95, .99]
 
-class sta_alpha_eval():
+class StaAlphaEvalReduce(StaAlphaEval):
     def __init__(self, sta_input):
-        f = open(sta_input, 'r', encoding='utf-8')
-        cfg = f.read()
-        dict_yaml = yaml.full_load(cfg)
-        f.close()
-
-        self.machine = dict_yaml['machine']
-        self.bench = dict_yaml['bench']
-        self.start_date = str(dict_yaml['start_date'])
-        self.end_date = str(dict_yaml['end_date'])
-        self.eval_alpha = dict_yaml['eval_alpha']
-        self.target_ret = dict_yaml['target_return']
-        self.target_cut = dict_yaml['target_cut']
-        self.lookback_window = dict_yaml['lookback_window']
-        self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
-        self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}')
-        try:
-            self.target_horizon = int(re.search(r"\d+", self.target_ret).group(0))
-        except (AttributeError, ValueError):
-            raise ValueError(f"Invalid Input target_ret: {self.target_ret}") 
-
-        try:
-            self.target_number = int(4800 * int(re.search(r"\d+", self.target_cut).group(0)) / 100)
-        except (AttributeError, ValueError):
-            raise ValueError(f"Invalid Input target_cut: {self.target_cut}") 
-        
-        self.eval_alpha_dict = defaultdict(list)
-        for alpha in self.eval_alpha:
-            self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
+        super().__init__(sta_input)
 
         self.pdf_width = 30
         self.html_width = 1400
@@ -56,21 +30,18 @@ class sta_alpha_eval():
         self.to_html = partial(io.to_html, include_plotlyjs='cdn', full_html=False)
         self.color = ['lightslategrey', 'steelblue', 'lightskyblue', 'paleturquoise', 'azure']
 
-
     def alpha_eval(self):
-        a = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                     config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
-                     KEYRING_LOC = '{0}/dfs/ceph.key.keyring'.format(os.environ['HOME']))
-
         self.daily_stat = pd.concat([pd.read_pickle(path) for path in glob(f"{self.cutoff_path}/daily/*.pkl")], 
                                   ignore_index=True)
+        for col in ['yHatHurdle','yHatAvg', 'actualRetAvg', 'vwActualRetAvg']:
+            self.daily_stat[col] = self.daily_stat[col] * 10000
         self.daily_stat['datetime'] = pd.to_datetime(self.daily_stat['date'].astype('str'))
         self.daily_stat['month'] = self.daily_stat['date'].map(lambda x:str(x)[:6])
         self.daily_stat['year'] = self.daily_stat['date'].map(lambda x:str(x)[:4])
 
         stock_list = self.daily_stat.skey.unique()
-        self.df_daily = a.Read_Stock_Daily('com_md_eq_cn', 'mdbar1d_jq', start_date=self.daily_stat.date.min(),
-                                           end_date=self.daily_stat.date.max(), stock_list=stock_list)
+        self.df_daily = self.stock_reader.Read_Stock_Daily('com_md_eq_cn', 'mdbar1d_jq', start_date=self.daily_stat.date.min(),
+                                                            end_date=self.daily_stat.date.max(), stock_list=stock_list)
         self.df_daily['price_group'] = np.where(self.df_daily['close'] < 5, '0-5', np.where(self.df_daily['close'] < 10, '5-10', 
                                        np.where(self.df_daily['close'] < 20, '10-20', np.where(self.df_daily['close'] < 50, '20-50', 
                                        np.where(self.df_daily['close'] < 100, '50-100', '100-')))))
@@ -84,7 +55,7 @@ class sta_alpha_eval():
         self.intraday_stat = df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])[['countOppo']].mean()
         self.intraday_stat['vwActualRetAvg'] = (df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])
                                                              .apply(lambda x: weighted_average(x['vwActualRetAvg'], weights=x['availNtlSum'])))
-        self.intraday_stat['vwActualRetAvg'] = round(self.intraday_stat['vwActualRetAvg'] * 10000, 2)
+        self.intraday_stat['vwActualRetAvg'] = self.intraday_stat['vwActualRetAvg'] * 10000
         self.intraday_stat = self.intraday_stat.reset_index()
         
         # self.pdf_report()
@@ -99,6 +70,14 @@ class sta_alpha_eval():
             # sta all summary
             table1 = self.sta_all_summary_html()
             f.write(table1 + '\n')
+
+            # distribution
+            f.write("<h2>distribution of yHat and yTrue</h2>" + "\n")
+            figs = self.sta_all_dist_html()
+            f.write(figs + '\n')
+
+            # drop actualRet
+            self.daily_stat = self.daily_stat[self.daily_stat['sta_cat'].isin(self.eval_alpha)].copy()
 
             # sta cutoff summary
             table2 = self.sta_cutoff_summary_html()
@@ -396,17 +375,49 @@ class sta_alpha_eval():
         return fig
 
     def sta_all_summary_html(self):
-        df_total = self.daily_stat.groupby(['sta_cat','exchange','side'])[['mean','std','skew','kurtosis']].mean().reset_index()
+        tmp_cols = ['count_x','sum_x','sum_x2','sum_x3','sum_x4']
+        df_total = self.daily_stat.groupby(['sta_cat','exchange','side'])[tmp_cols].sum().reset_index()
+
+        df_total['mean'] = df_total['sum_x'] / df_total['count_x']
+        ex2_tmp = df_total['sum_x2'] / df_total['count_x']
+        ex3_tmp = df_total['sum_x3'] / df_total['count_x']
+        ex4_tmp = df_total['sum_x4'] / df_total['count_x']
+        
+        df_total['std'] = np.sqrt(ex2_tmp - df_total['mean']**2)
+        df_total['skew'] = (ex3_tmp - 3 * df_total['mean'] * df_total['std']**2 - df_total['mean']**3) / df_total['std']**3
+        df_total['kurtosis'] = (ex4_tmp - 4 * df_total['mean'] * ex3_tmp - 3 * df_total['mean']**4 + 6 * df_total['mean']**2 * ex2_tmp) / df_total['std']**4 - 3
+
+        for col in ['mean', 'std']:
+            df_total[col] = df_total[col] * 10000
         for col in ['mean','std','skew','kurtosis']:
             df_total[col] = df_total[col].map(lambda x: "{:.2f}".format(x))
+        df_total = df_total.drop(tmp_cols, axis=1)
         fig = go.Figure(data=[go.Table(header=dict(values=[f'<b>{col}</b>' for col in df_total.columns],align=['center', 'center'],font_size=14,height=30),
                       cells=dict(values=[df_total[col] for col in df_total.columns], align=['center', 'center'],
                                 font_size=14,height=30))])
         fig.update_layout(font_family='sans-serif', title_text='yHat General Stats', title_x=0.5, title_yanchor='top', 
-                          width=self.html_width, height=220, autosize=False, margin=dict(t=40, b=10, l=10, r=10))
+                          width=self.html_width, height=(1+len(df_total)) * 30 + 60, autosize=False, 
+                          margin=dict(t=40, b=10, l=10, r=10))
 
         return io.to_html(fig, full_html=False, include_plotlyjs='cdn')
     
+    def sta_all_dist_html(self):
+        df_hist = pd.DataFrame(self.daily_stat.hist_x.tolist()).sort_index(axis=1)
+        df_hist = pd.concat([self.daily_stat[['sta_cat']], df_hist], axis=1).groupby('sta_cat').sum().unstack().reset_index()
+        df_hist.columns = ['index', 'sta_cat', 'value']
+        df_hist['value'] = df_hist['value'] / df_hist.groupby('sta_cat')['value'].transform('sum')
+        df_hist['sta_cat_suffix'] = df_hist['sta_cat'].str.split('_').str[-1]
+        df_hist['sta_cat_prefix'] = df_hist['sta_cat'].str.split('_').str[:-1].str.join("_")
+        df_hist = df_hist.sort_values(['sta_cat'], ascending=False).sort_values(['index'])
+
+        fig = px.line(df_hist, x='index', y='value',line_dash='sta_cat_prefix', color='sta_cat_suffix', height=500, width=self.html_width,
+                      labels={'index': 'return (bps)', 'value': 'probability density'},
+                      hover_data={'sta_cat_suffix':False, 'sta_cat_prefix': False, 'value': ':.3f'},
+                      category_orders={'sta_cat_prefix':[self.target_ret]})
+        fig.update_layout(font_family='sans-serif', legend=dict(title_text="", bgcolor="LightSteelBlue"))
+
+        return self.to_html(fig)
+
     def sta_cutoff_summary_html(self):
         df_total = self.daily_stat.groupby(['sta_cat', 'exchange', 'side'])[['countOppo']].mean()
         
@@ -431,7 +442,8 @@ class sta_alpha_eval():
                       cells=dict(values=[df_total[col] for col in df_total.columns], align=['center', 'center'],
                                 font_size=14,height=30))])
         fig.update_layout(font_family='sans-serif', title_text='overall performance outlook', title_x=0.5, title_yanchor='top', 
-                          width=self.html_width, height=220, autosize=False, margin=dict(t=40, b=10, l=10, r=10))
+                          width=self.html_width, height=(1+len(df_total)) * 30 + 60, autosize=False, 
+                          margin=dict(t=40, b=10, l=10, r=10))
 
         return io.to_html(fig, full_html=False, include_plotlyjs='cdn')
 
@@ -441,7 +453,8 @@ class sta_alpha_eval():
         df_side = df_side.reset_index()
         fig = px.bar(df_side, x='side', y='vwActualRetAvg', color='sta_cat', barmode='group', height=500, width=self.html_width,
                         labels={'vwActualRetAvg': 'return (bps)'},
-                        hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                        hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
+                        category_orders={'sta_cat': self.eval_alpha})
         fig.update_layout(font_family='sans-serif',
                           title=dict(text='all side - '+'actualRet90s', x=0.5, yanchor='top',font_size=18),
                           legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -467,7 +480,8 @@ class sta_alpha_eval():
             df_side.drop(columns = ['price_start'], inplace = True)
             fig = px.bar(df_side, x='price_group', y='vwActualRetAvg', color='sta_cat', barmode='group', height=500, width=self.html_width,
                          labels={'price_group': 'price group', 'vwActualRetAvg': 'return (bps)'},
-                         hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                         hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
+                         category_orders={'sta_cat': self.eval_alpha})
             fig.update_layout(font_family='sans-serif',
                               title=dict(text=side+' side - '+'actualRet90s', x=0.5, yanchor='top',font_size=18),
                               legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -485,7 +499,8 @@ class sta_alpha_eval():
                     continue
                 fig = px.line(df_top, x='datetime', y='yHatHurdle', color='sta_cat', height=500, width=self.html_width,
                               labels={'datetime': '', 'yHatHurdle': 'yHatHurdle (bps)'},
-                              hover_data={'sta_cat':False, 'yHatHurdle': ':.2f'})
+                              hover_data={'sta_cat':False, 'yHatHurdle': ':.2f'},
+                              category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - yHatHurdle', x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -511,7 +526,8 @@ class sta_alpha_eval():
                     continue
                 fig = px.bar(df_hist, x=stats_horizon, y='vwActualRetAvg', color='sta_cat', barmode='group', 
                              height=500, width=self.html_width,labels={'vwActualRetAvg': 'return (bps)'},
-                             hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                             hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
+                             category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -533,7 +549,8 @@ class sta_alpha_eval():
                 
                 fig = px.line(df_hist, x='datetime', y='vwActualRetAvg', color='sta_cat', height=500, width=self.html_width,
                               labels={'datetime': '', 'vwActualRetAvg': 'return (bps)'},
-                              hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                              hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
+                              category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -556,8 +573,9 @@ class sta_alpha_eval():
                 if len(df_intra) == 0:
                     continue
                 fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=500, width=self.html_width,
-                            labels={'mins_since_open': '', value: ylabel},
-                            hover_data={'sta_cat':False, value: ':.2f'})
+                             labels={'mins_since_open': '', value: ylabel},
+                             hover_data={'sta_cat':False, value: ':.2f'},
+                             category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_cut, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -582,7 +600,8 @@ class sta_alpha_eval():
                     continue
                 fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=500, width=self.html_width,
                               labels={'mins_since_open': '', value: ylabel},
-                              hover_data={'sta_cat':False, value: ':.2f'})
+                              hover_data={'sta_cat':False, value: ':.2f'},
+                              category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_cut, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -595,7 +614,7 @@ class sta_alpha_eval():
         return '\n'.join(reports)
 
 if __name__ == "__main__":
-    sta_input = '/home/marlowe/Marlowe/eva/sta_input_demo.yaml'
-    sta_eval_run = sta_alpha_eval(sta_input)
+    sta_input = '/home/marlowe_zhong/eva/sta_input_demo.yaml'
+    sta_eval_run = StaAlphaEvalReduce(sta_input)
     
     sta_eval_run.alpha_eval()

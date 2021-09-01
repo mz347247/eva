@@ -86,13 +86,13 @@ def findTmValue(clockLs, tm, method='L'):
     if method == 'F':
         ix = np.searchsorted(clockLs, clockLs + tm, side='left')
         ## if target future index is next tick, mask
-        mask = (orignIx == (ix - 1))|(orignIx == ix)|(ix == maxIx)
+        mask = (orignIx == ix)|(ix == maxIx)
     elif method == 'L':
         ## if target future index is last tick, mask
         ix = np.searchsorted(clockLs, clockLs - tm, side='right') - 1
         ix = ix - 1
         ix[ix<0] = 0
-        mask = (orignIx == ix) | ((clockLs-(tm-0.5)).values < clockLs.values[0])
+        mask = (orignIx == ix) | ((clockLs-tm).values < clockLs.values[0])
     ix[mask] = -1
     return ix
 
