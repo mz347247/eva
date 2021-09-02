@@ -29,7 +29,7 @@ class StaAlphaEval():
         self.lookback_window = dict_yaml['lookback_window']
         self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}')
-        
+
         self.filter_first = dict_yaml['filter_first']
         
         if self.machine == "personal-server":
@@ -42,3 +42,7 @@ class StaAlphaEval():
         elif self.machine == "HPC":
             self.stock_reader = AShareReader()
             self.sta_reader = CephClient()
+
+
+if __name__ == "__main__":
+    pass

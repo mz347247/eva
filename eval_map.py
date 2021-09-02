@@ -30,8 +30,8 @@ class StaAlphaEvalMap(StaAlphaEval):
         if self.target_cut.endswith("p"):
             self.target_number = None
             try:
-                self.target_ratio = int(re.search(r"\d+", self.target_cut).group(0))
-                assert self.target_ratio < 100
+                self.target_ratio = int(re.search(r"\d+", self.target_cut).group(0)) / 100
+                assert self.target_ratio < 1
             except (AttributeError, ValueError):
                 raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
         else:
@@ -134,15 +134,11 @@ class StaAlphaEvalMap(StaAlphaEval):
                                        var_name="sta_cat", value_name='sta')
 
                 total_number = 4800 if sta_type=="l2" else 14400
-                if self.target_number is None:
-                    target_number = int(total_number * self.target_ratio / 100)
-                else:
-                    target_number = self.target_number
 
-                
                 df_cutoff = (df_side.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                     .apply(lambda x: find_top_percent(x, col="sta",
-                                                                      target_number=target_number, 
+                                                                      target_number=self.target_number, 
+                                                                      target_ratio=self.target_ratio,
                                                                       total_number=total_number,
                                                                       filter_first=self.filter_first))
                                     .reset_index(drop=True))
@@ -150,9 +146,10 @@ class StaAlphaEvalMap(StaAlphaEval):
                 df_cutoff['side'] = side
                 
                 stat_data_cutoff = (df_cutoff.groupby(['skey', 'exchange', 
-                                                       'date', 'sta_cat'])[['sta', 'availNtl',self.target_ret]]
+                                                       'date', 'sta_cat'])[['sta','availNtl',self.target_ret,'top_percent']]
                                              .agg(yHatAvg=('sta', 'mean'), 
                                                   countOppo=('sta', 'count'),
+                                                  topPercent=('top_percent', 'mean'),
                                                   availNtlAvg=('availNtl', 'mean'),
                                                   availNtlSum=('availNtl', 'sum'),
                                                   yHatHurdle=('sta', 'min'),
@@ -263,10 +260,13 @@ if __name__ == "__main__":
 
     # sta_eval_run.generate_daily_sta_cutoff(20200120)
 
-    dates = sta_eval_run.stock_reader.Read_Stock_Daily("com_md_eq_cn", "mdbar1d_jq", 
-                                                       start_date=int(sta_eval_run.start_date), 
-                                                       end_date=int(sta_eval_run.end_date),
-                                                       stock_list=[1000905], cols_list=['date'])['date'].unique()
+    paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
+    dates = []
+    for path in paths:
+        date = path.split("/")[-1].split(".")[0]
+        if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
+            dates.append(int(date))
+
     # dates = [20200102, 20200103, 20200106, 20200107]
     print(len(dates))
     sta_eval_run.generate_sta_cutoff(dates)

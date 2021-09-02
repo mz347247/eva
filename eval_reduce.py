@@ -52,7 +52,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_intraday = pd.concat([pd.read_pickle(path) for path in glob(f"{self.cutoff_path}/intraday/*.pkl")], 
                                    ignore_index=True)
 
-        self.intraday_stat = df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])[['countOppo']].mean()
+        self.intraday_stat = df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])[['countOppo', 'countStock']].sum()
+        self.intraday_stat['countOppo'] = self.intraday_stat['countOppo'] / self.intraday_stat['countStock']
         self.intraday_stat['vwActualRetAvg'] = (df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])
                                                              .apply(lambda x: weighted_average(x['vwActualRetAvg'], weights=x['availNtlSum'])))
         self.intraday_stat['vwActualRetAvg'] = self.intraday_stat['vwActualRetAvg'] * 10000
@@ -419,7 +420,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
         return self.to_html(fig)
 
     def sta_cutoff_summary_html(self):
-        df_total = self.daily_stat.groupby(['sta_cat', 'exchange', 'side'])[['countOppo']].mean()
+        df_total = self.daily_stat.groupby(['sta_cat', 'exchange', 'side'])[['countOppo', 'topPercent']].mean()
         
         for col in ['yHatHurdle', 'yHatAvg', 'vwActualRetAvg']:
             df_total[col] = self.daily_stat.groupby(['sta_cat', 'exchange', 'side']).apply(lambda x: weighted_average(x[col], weights=x['availNtlSum']))
@@ -433,7 +434,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
         df_total['improvement(%)'] = (df_total['vwActualRetAvg']/df_total['base_ret'] - 1) * 100
         
-        for col in ['yHatAvg', 'yHatHurdle','vwActualRetAvg','improvement(%)','availNtl', 'countOppo']:
+        for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','improvement(%)','availNtl', 'countOppo', 'topPercent']:
             df_total[col] = df_total[col].map(lambda x: "{:.2f}".format(x))
 
         # add bold font
@@ -500,14 +501,15 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                         .groupby(['sta_cat','datetime'])['yHatHurdle'].mean().reset_index())
                 if len(df_top) == 0:
                     continue
-                fig = px.line(df_top, x='datetime', y='yHatHurdle', color='sta_cat', height=500, width=self.html_width,
+                fig = px.line(df_top, x='datetime', y='yHatHurdle', color='sta_cat', height=600, width=self.html_width,
                               labels={'datetime': '', 'yHatHurdle': 'yHatHurdle (bps)'},
                               hover_data={'sta_cat':False, 'yHatHurdle': ':.2f'},
                               category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - yHatHurdle', x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
-                fig.update_xaxes(range=(df_top['datetime'].min() - pd.offsets.Day(5), df_top['datetime'].max() + pd.offsets.Day(5)))
+                fig.update_xaxes(range=(df_top['datetime'].min() - pd.offsets.Day(5), df_top['datetime'].max() + pd.offsets.Day(5)),
+                                 rangeslider_visible=True)
                 reports.append(self.to_html(fig))
 
         return '\n'.join(reports)
@@ -550,7 +552,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 if len(df_hist) == 0:
                     continue
                 
-                fig = px.line(df_hist, x='datetime', y='vwActualRetAvg', color='sta_cat', height=500, width=self.html_width,
+                fig = px.line(df_hist, x='datetime', y='vwActualRetAvg', color='sta_cat', height=600, width=self.html_width,
                               labels={'datetime': 'date', 'vwActualRetAvg': 'return (bps)'},
                               hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
                               category_orders={'sta_cat': self.eval_alpha})
@@ -558,7 +560,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
                 fig.update_yaxes(zeroline=True, zerolinewidth=2, zerolinecolor='grey')
-                fig.update_xaxes(range=(df_hist['datetime'].min() - pd.offsets.Day(5), df_hist['datetime'].max() + pd.offsets.Day(5)))
+                fig.update_xaxes(range=(df_hist['datetime'].min() - pd.offsets.Day(5), df_hist['datetime'].max() + pd.offsets.Day(5)),
+                                 rangeslider_visible=True)
                 reports.append(self.to_html(fig))
         
         return '\n'.join(reports)
@@ -575,7 +578,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                               .reset_index().sort_values('mins_since_open'))
                 if len(df_intra) == 0:
                     continue
-                fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=500, width=self.html_width,
+                fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=600, width=self.html_width,
                              labels={'mins_since_open': '', value: ylabel},
                              hover_data={'sta_cat':False, 'mins_since_open':False, value: ':.2f'},
                              category_orders={'sta_cat': self.eval_alpha})
@@ -584,7 +587,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
                 fig.update_xaxes(tickmode='array', tickvals=list(range(0,240,30)),
                                  ticktext=['09:30', '10:00', '10:30', '11:00', '11:30 / 13:00', "13:30", "14:00", "14:30"],
-                                 range=(-5, 240))
+                                 range=(-5, 240),
+                                 rangeslider_visible=True)
                 reports.append(self.to_html(fig))
         
         return '\n'.join(reports)
@@ -601,7 +605,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                               .reset_index().sort_values('mins_since_open'))
                 if len(df_intra) == 0:
                     continue
-                fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=500, width=self.html_width,
+                fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=600, width=self.html_width,
                               labels={'mins_since_open': '', value: ylabel},
                               hover_data={'sta_cat':False, 'mins_since_open':False, value: ':.2f'},
                               category_orders={'sta_cat': self.eval_alpha})
@@ -610,7 +614,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
                 fig.update_xaxes(tickmode='array', tickvals=list(range(0,240,30)),
                                  ticktext=['09:30', '10:00', '10:30', '11:00', '11:30 / 13:00', "13:30", "14:00", "14:30"],
-                                 range=(-5,240))
+                                 range=(-5,240),
+                                 rangeslider_visible=True)
                 fig.update_yaxes(zeroline=True, zerolinewidth=2, zerolinecolor='grey')
                 reports.append(self.to_html(fig))
         
