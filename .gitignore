@@ -6,4 +6,6 @@
 *.html
 **/logs
 *.sh
+**/__pycache__
+**/.ipynb_checkpoints
 

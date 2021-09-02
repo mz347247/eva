@@ -68,10 +68,19 @@ class StaAlphaEvalMap(StaAlphaEval):
             df_sta = df_sta[df_sta.skey.isin(universe)].reset_index(drop=True)
 
             # TODO: no need to read ask5q and bid5q if we have near limit status in DFS
+            # TODO: tempararily modify this
             df_md = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_{sta_type}', start_date=date, end_date=date, 
                                        stock_list=universe, cols_list=['skey', 'date', 'time', 'clockAtArrival', 'ordering', 
                                                                        'ask1p', 'ask1q', 'bid1p', 'bid1q', 'ask5q', 'bid5q',
-                                                                       'cum_volume', 'cum_amount'])
+                                                                       'cum_volume', 'cum_amount', 'ApplSeqNum'])
+            # if sta_type == 'mbd':
+            #     tmp = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_l2', start_date=date, end_date=date, 
+            #                                             stock_list=universe, cols_list=['skey', 'date','ApplSeqNum'])
+            #     df_md = df_md[df_md.ApplSeqNum >= 0]
+            #     tmp = tmp[tmp.ApplSeqNum >= 0]
+            #     df_md = pd.merge(tmp, df_md, how='left', on=['skey', 'date','ApplSeqNum'], validate='many_to_one')
+            #     df_md = df_md.drop_duplicates(subset=['skey', 'date', 'ordering']).sort_values(['skey', 'time'])
+            #     del tmp
             
             df_md = df_md[(df_md.bid1p != 0) | (df_md.ask1p != 0)]
             df_md = df_md[((df_md['time'] >= 9.3 * 1e10) & (df_md['time'] <= 11.3 * 1e10)) |
@@ -129,11 +138,15 @@ class StaAlphaEvalMap(StaAlphaEval):
                     target_number = int(total_number * self.target_ratio / 100)
                 else:
                     target_number = self.target_number
+
+                
                 df_cutoff = (df_side.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                     .apply(lambda x: find_top_percent(x, col="sta",
                                                                       target_number=target_number, 
-                                                                      total_number=total_number))
+                                                                      total_number=total_number,
+                                                                      filter_first=self.filter_first))
                                     .reset_index(drop=True))
+
                 df_cutoff['side'] = side
                 
                 stat_data_cutoff = (df_cutoff.groupby(['skey', 'exchange', 
@@ -234,6 +247,7 @@ def _get_eva_md(tstock, forward_period, backward_period):
     tstock[f'nearLimit_L{backward_period}s_L0'] = (groupAllData['curNearLimit'].apply(lambda x:x.rolling(window = f'{backward_period}s', closed='both').max())) 
     tstock['nearLimit'] = (tstock[f'nearLimit_L{backward_period}s_L0'] == 1) | (tstock[f'curNearLimit_L{backward_period}s'] == 1)
     tstock.reset_index(drop=True, inplace=True)
+    tstock.loc[tstock['nearLimit'], [f'buyRet{forward_period}s', f'sellRet{forward_period}s']] = np.nan
 
     col_ls = ['skey', 'date', 'time', 'datetime', 'ordering', 
               'ask1p', 'ask1q', 'bid1p', 'bid1q',

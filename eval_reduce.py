@@ -432,9 +432,12 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_total['base_ret'] = df_total.groupby(['exchange', 'side'])['base_ret'].bfill()
 
         df_total['improvement(%)'] = (df_total['vwActualRetAvg']/df_total['base_ret'] - 1) * 100
-
+        
         for col in ['yHatAvg', 'yHatHurdle','vwActualRetAvg','improvement(%)','availNtl', 'countOppo']:
             df_total[col] = df_total[col].map(lambda x: "{:.2f}".format(x))
+
+        # add bold font
+        df_total['improvement(%)'] = "<b>" + df_total['improvement(%)'].astype(str) + "</b>"
 
         df_total = df_total.drop("base_ret", axis=1)
 
@@ -548,7 +551,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 
                 fig = px.line(df_hist, x='datetime', y='vwActualRetAvg', color='sta_cat', height=500, width=self.html_width,
-                              labels={'datetime': '', 'vwActualRetAvg': 'return (bps)'},
+                              labels={'datetime': 'date', 'vwActualRetAvg': 'return (bps)'},
                               hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
                               category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
@@ -574,7 +577,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=500, width=self.html_width,
                              labels={'mins_since_open': '', value: ylabel},
-                             hover_data={'sta_cat':False, value: ':.2f'},
+                             hover_data={'sta_cat':False, 'mins_since_open':False, value: ':.2f'},
                              category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_cut, x=0.5, yanchor='top',font_size=18),
@@ -600,7 +603,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=500, width=self.html_width,
                               labels={'mins_since_open': '', value: ylabel},
-                              hover_data={'sta_cat':False, value: ':.2f'},
+                              hover_data={'sta_cat':False, 'mins_since_open':False, value: ':.2f'},
                               category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_cut, x=0.5, yanchor='top',font_size=18),

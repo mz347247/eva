@@ -23,7 +23,7 @@ class NestablePool(multiprocessing.pool.Pool):
         kwargs['context'] = NoDaemonContext()
         super(NestablePool, self).__init__(*args, **kwargs)
 
-def interval_filter(df, min_time=None, min_volume=None):
+def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
     """
     filter out consecutive opportunities if the arrival time of the opportunities are too close
 
@@ -34,21 +34,25 @@ def interval_filter(df, min_time=None, min_volume=None):
 
     volume_cond = True
     time_cond = True
+    amount_cond = True
 
     for oppo in records:
-        if min_volume is not None:
-            volume_cond = (oppo.cum_volume - remaining[-1].cum_volume > min_volume)
-
         if min_time is not None:
             time_cond = (abs((oppo.time - remaining[-1].time) / 1e6) > min_time)
 
-        if volume_cond and time_cond:
+        if min_volume is not None:
+            volume_cond = (oppo.cum_volume - remaining[-1].cum_volume > min_volume)
+
+        if min_amount is not None:
+            amount_cond = (oppo.cum_amount - remaining[-1].cum_amount > min_amount)
+
+        if volume_cond and time_cond and amount_cond:
             remaining.append(oppo)
 
     return pd.DataFrame(np.array(remaining))
 
 
-def find_top_percent(df, col, target_number, total_number, min_time=1, min_volume=1000, 
+def find_top_percent(df, col, target_number, total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
                      tolerance=0.01, termination=10):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
@@ -59,22 +63,30 @@ def find_top_percent(df, col, target_number, total_number, min_time=1, min_volum
     # exclude some special cases
     if (target_number < 50) or (len(df_valid) < target_number):
         return None
-    ratio = target_number / len(df_valid)
-    filter_rate = 0
 
-    for _ in range(termination):
-        oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
-        oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume)
+    if filter_first:
+        # apply the filter first
+        df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount)
+        ratio = target_number / len(df_pass_filter)
+        oppo = df_pass_filter[df_pass_filter[col] > df_pass_filter[col].quantile(1 - ratio)]
+    else:
+        # pick the top x percentile first
+        ratio = target_number / len(df_valid)
+        filter_rate = 0
 
-        if abs(len(oppo) - target_number) < tolerance * target_number:
-            break
+        for _ in range(termination):
+            oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
+            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+
+            if abs(len(oppo) - target_number) < tolerance * target_number:
+                break
+            
+            # update the estimation of the filter rate
+            filter_rate = 1/3 * filter_rate + 2/3 * len(oppo) / len(oppo_index)
+            # update the ratio
+            ratio = min(target_number / filter_rate / len(df_valid), 1)
         
-        # update the estimation of the filter rate
-        filter_rate = 1/3 * filter_rate + 2/3 * len(oppo) / len(oppo_index)
-        # update the ratio
-        ratio = min(target_number / filter_rate / len(df_valid), 1)
-    
-    return oppo
+        return oppo
 
 def weighted_average(values, weights):
     indices = ~np.isnan(values)

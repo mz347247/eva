@@ -30,6 +30,8 @@ class StaAlphaEval():
         self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}')
         
+        self.filter_first = dict_yaml['filter_first']
+        
         if self.machine == "personal-server":
             self.stock_reader = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
                                           config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
