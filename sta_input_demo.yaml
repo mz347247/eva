@@ -1,10 +1,10 @@
-machine: HPC
+machine: personal-server
 bench: IC
 start_date: 20200101
 end_date: 20201231 
 eval_alpha: [sta_90_1_1_1_l2, sta_90_1_1_1_mbd]
 target_return: actualRet90s
-target_cut: top5p  # top240, top5p, top5bps
+target_cut: top5bps # top240, top5p, top5bps
 filter_first: True
 lookback_window: 180
-save_path: /home/marlowe_zhong/sta_eval/sta_eval_v2
+save_path: /home/marlowe/Marlowe/sta_eval/sta_eval_v1

@@ -13,10 +13,6 @@ from tqdm import tqdm
 from HPCutils import get_job_list
 from eval import StaAlphaEval
 
-import yaml
-
-perc = [.01, .05, .1, .25, .5, .75, .9, .95, .99]
-
 class StaAlphaEvalMap(StaAlphaEval):
 
     def __init__(self, sta_input):
@@ -28,17 +24,21 @@ class StaAlphaEvalMap(StaAlphaEval):
             raise ValueError(f"Invalid Input target_ret: {self.target_ret}") 
 
         # top5p or top240
+        self._target_number = self._target_ratio = self._target_return = None
         if self.target_cut.endswith("p"):
-            self.target_number = None
             try:
-                self.target_ratio = int(re.search(r"\d+", self.target_cut).group(0)) / 100
-                assert self.target_ratio < 1
+                self._target_ratio = int(re.search(r"\d+", self.target_cut).group(0)) / 100
+                assert self._target_ratio < 1
+            except (AttributeError, ValueError):
+                raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
+        elif self.target_cut.endswith("bps"):
+            try:
+                self._target_return = int(re.search(r"\d+", self.target_cut).group(0))
             except (AttributeError, ValueError):
                 raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
         else:
-            self.target_ratio = None
             try:
-                self.target_number = int(re.search(r"\d+", self.target_cut).group(0))
+                self._target_number = int(re.search(r"\d+", self.target_cut).group(0))
             except (AttributeError, ValueError):
                 raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
         
@@ -83,14 +83,16 @@ class StaAlphaEvalMap(StaAlphaEval):
             #     df_md = df_md.drop_duplicates(subset=['skey', 'date', 'ordering']).sort_values(['skey', 'time'])
             #     del tmp
             
-            df_md = df_md[(df_md.bid1p != 0) | (df_md.ask1p != 0)]
-            df_md = df_md[((df_md['time'] >= 9.3 * 1e10) & (df_md['time'] <= 11.3 * 1e10)) |
-                          ((df_md['time'] >= 13 * 1e10) & (df_md['time'] < 14.5655 * 1e10))].reset_index(drop=True)
+            df_md = df_md[(df_md.bid1p != 0) | (df_md.ask1p != 0)].reset_index(drop=True)
+            
             # TODO: modify this when true return and near limit status is ready in DFS
             df_md['datetime'] = (df_md.date.astype(str).apply(lambda x: x[:4] + "-" + x[4:6] + "-" + x[6:]) + " " + 
                                  df_md.time.astype(int).astype(str).str.zfill(12).apply(lambda x: x[:2] + ":" + x[2:4] + ":" + x[4:6]))
             df_md['datetime'] = pd.to_datetime(df_md['datetime'])
             df_md = _get_eva_md(df_md, self.target_horizon, self.lookback_window)
+
+            df_md = df_md[((df_md['time'] >= 9.3 * 1e10) & (df_md['time'] <= 11.3 * 1e10)) |
+                          ((df_md['time'] >= 13 * 1e10) & (df_md['time'] < 14.5655 * 1e10))].reset_index(drop=True)
 
             df_alpha = df_md.merge(df_sta, on = ['skey','date','ordering'], how = 'left', validate = 'one_to_one')
             df_alpha = df_alpha.sort_values(['skey','date','ordering']).reset_index(drop=True)
@@ -135,13 +137,17 @@ class StaAlphaEvalMap(StaAlphaEval):
                                        var_name="sta_cat", value_name='sta')
 
                 total_number = 4800 if sta_type=="l2" else 14400
+                tolerance = 0.05 if (self._target_return is not None) else 0.01
 
                 df_cutoff = (df_side.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                     .apply(lambda x: find_top_percent(x, col="sta",
-                                                                      target_number=self.target_number, 
-                                                                      target_ratio=self.target_ratio,
+                                                                      target_number=self._target_number, 
+                                                                      target_ratio=self._target_ratio,
+                                                                      target_return=self._target_return,
+                                                                      ytrue_col=self.target_ret,
                                                                       total_number=total_number,
-                                                                      filter_first=self.filter_first))
+                                                                      filter_first=self.filter_first,
+                                                                      tolerance=tolerance))
                                     .reset_index(drop=True))
 
                 df_cutoff['side'] = side
@@ -256,21 +262,25 @@ def _get_eva_md(tstock, forward_period, backward_period):
             
 
 if __name__ == "__main__":
-    sta_input = sys.argv[1]
+    
+
+    sta_input = '/home/marlowe/Marlowe/eva/sta_input_demo.yaml'
     sta_eval_run = StaAlphaEvalMap(sta_input)
+    sta_eval_run.generate_daily_sta_cutoff(20200102)
 
-    # sta_eval_run.generate_daily_sta_cutoff(20200120)
+    # sta_input = sys.argv[1]
+    # sta_eval_run = StaAlphaEvalMap(sta_input)
 
-    paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
-    dates = []
-    for path in paths:
-        date = path.split("/")[-1].split(".")[0]
-        if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
-            dates.append(int(date))
+    # paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
+    # dates = []
+    # for path in paths:
+    #     date = path.split("/")[-1].split(".")[0]
+    #     if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
+    #         dates.append(int(date))
 
-    # dates = [20200102, 20200103, 20200106, 20200107]
-    print(len(dates))
-    sta_eval_run.generate_sta_cutoff(dates)
+    # # dates = [20200102, 20200103, 20200106, 20200107]
+    # print(len(dates))
+    # sta_eval_run.generate_sta_cutoff(dates)
 
     # partial_func = partial(_get_daily_sta_cutoff, sta_input=sta_input)
     # with Pool(4) as p:
