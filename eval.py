@@ -28,9 +28,9 @@ class StaAlphaEval():
         self.target_cut = dict_yaml['target_cut']
         self.lookback_window = dict_yaml['lookback_window']
         self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
-        self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}')
+        self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
 
-        self.filter_first = dict_yaml['filter_first']
+        self.eval_focus = dict_yaml['eval_focus']
         
         if self.machine == "personal-server":
             self.stock_reader = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 

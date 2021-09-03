@@ -24,16 +24,11 @@ class StaAlphaEvalMap(StaAlphaEval):
             raise ValueError(f"Invalid Input target_ret: {self.target_ret}") 
 
         # top5p or top240
-        self._target_number = self._target_ratio = self._target_return = None
+        self._target_number = self._target_ratio = None
         if self.target_cut.endswith("p"):
             try:
                 self._target_ratio = int(re.search(r"\d+", self.target_cut).group(0)) / 100
                 assert self._target_ratio < 1
-            except (AttributeError, ValueError):
-                raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
-        elif self.target_cut.endswith("bps"):
-            try:
-                self._target_return = int(re.search(r"\d+", self.target_cut).group(0))
             except (AttributeError, ValueError):
                 raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
         else:
@@ -41,17 +36,33 @@ class StaAlphaEvalMap(StaAlphaEval):
                 self._target_number = int(re.search(r"\d+", self.target_cut).group(0))
             except (AttributeError, ValueError):
                 raise ValueError(f"Invalid Input target_cut: {self.target_cut}")
+
+        self._filter_first = False
+
+        if self.eval_focus == 'mixed':
+            self._filter_first = True
         
         self.eval_alpha_dict = defaultdict(list)
-        for alpha in self.eval_alpha:
-            self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
+        for i, alpha in enumerate(self.eval_alpha):
+            if (self.eval_focus == "oppo") and (i==0):
+                self.eval_alpha_dict['base'].append(alpha)
+            else:
+                self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
 
     def generate_daily_sta_cutoff(self, date):
         df_daily = []
         df_intra = []
 
+        if self.eval_focus == 'oppo':
+            base_return = {}
+
         # loop over alphas from mbd and lv2
-        for sta_type, sta_ls in self.eval_alpha_dict.items():
+        for key, sta_ls in self.eval_alpha_dict.items():
+            if key == "base":
+                sta_type = sta_ls[0].split("_")[-1]
+            else:
+                sta_type = key
+
             buy_sta_cols = []
             sell_sta_cols = []
             for ix, sta in enumerate(sta_ls):
@@ -137,19 +148,23 @@ class StaAlphaEvalMap(StaAlphaEval):
                                        var_name="sta_cat", value_name='sta')
 
                 total_number = 4800 if sta_type=="l2" else 14400
-                tolerance = 0.05 if (self._target_return is not None) else 0.01
+
+                if (self.eval_focus == 'oppo') and (key!='base'):
+                    target_return_col = 'target_ret'
+                    df_side = df_side.merge(base_return[side], on=['skey', 'exchange', 'date'], how='left', validate='many_to_one')
+                else:
+                    target_return_col = None
 
                 df_cutoff = (df_side.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                     .apply(lambda x: find_top_percent(x, col="sta",
                                                                       target_number=self._target_number, 
                                                                       target_ratio=self._target_ratio,
-                                                                      target_return=self._target_return,
+                                                                      target_return_col=target_return_col,
                                                                       ytrue_col=self.target_ret,
                                                                       total_number=total_number,
-                                                                      filter_first=self.filter_first,
-                                                                      tolerance=tolerance))
+                                                                      filter_first=self._filter_first))
                                     .reset_index(drop=True))
-
+                    
                 df_cutoff['side'] = side
                 
                 stat_data_cutoff = (df_cutoff.groupby(['skey', 'exchange', 
@@ -162,8 +177,15 @@ class StaAlphaEvalMap(StaAlphaEval):
                                                   yHatHurdle=('sta', 'min'),
                                                   actualRetAvg=(self.target_ret, 'mean')))
                 stat_data_cutoff['vwActualRetAvg'] = (df_cutoff.groupby(['skey', 'exchange', 'date', 'sta_cat'])
-                                                              .apply(lambda x: weighted_average(x[self.target_ret],
+                                                               .apply(lambda x: weighted_average(x[self.target_ret],
                                                                                                 weights=x['availNtl'])))
+                stat_data_cutoff = stat_data_cutoff.reset_index()
+
+                # record the base return
+                if (self.eval_focus == 'oppo') and (key=='base'):
+                    base_return[side] = stat_data_cutoff[['skey', 'exchange', 'date', 'vwActualRetAvg']]
+                    base_return[side].columns = ['skey', 'exchange', 'date', 'target_ret']
+
                 stat_data = pd.merge(stat_data_all, stat_data_cutoff, on=['skey', 'exchange', 'date', 'sta_cat'], how='left', validate='one_to_one')
                 del stat_data_all, stat_data_cutoff
 

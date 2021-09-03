@@ -52,20 +52,23 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
     return pd.DataFrame(np.array(remaining))
 
 
-def find_top_percent(df, col, target_number, target_ratio, target_return, ytrue_col,
+def find_top_percent(df, col, target_number, target_ratio, target_return_col, ytrue_col,
                      total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
-                     tolerance=0.05, termination=20):
+                     tolerance=0.05, termination=10):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
     """
-    assert (target_ratio is not None) or (target_number is not None) or (target_return is not None)
+    assert (target_ratio is not None) or (target_number is not None) or (target_return_col is not None)
 
     df_valid = df[df[col].notna() & ~df['nearLimit']]
     if len(df_valid) < 100:
         return None
 
     flag = False
-    if target_return is not None:
+    if target_return_col is not None:
+        target_return = df_valid[target_return_col].iloc[0]
+        if np.isnan(target_return):
+            return None
         low = 50
         high = len(df_valid)
 
@@ -73,9 +76,10 @@ def find_top_percent(df, col, target_number, target_ratio, target_return, ytrue_
             number = low + (high - low) // 2
             oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - number / len(df_valid))]
             oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
-            vw_ret = weighted_average(oppo[ytrue_col], oppo['availNtl']) * 1e4
-            if abs(vw_ret - target_return) < tolerance * target_return:
-                flag = True
+            vw_ret = weighted_average(oppo[ytrue_col], oppo['availNtl'])
+            if abs(vw_ret - target_return) < tolerance * abs(target_return):
+                break
+            if high - low == 1:
                 break
             elif vw_ret < target_return:
                 high = number
@@ -104,7 +108,6 @@ def find_top_percent(df, col, target_number, target_ratio, target_return, ytrue_
             oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
 
             if abs(len(oppo) - target_number) < tolerance * target_number:
-                flag = True
                 break
             
             # update the estimation of the filter rate
@@ -112,7 +115,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return, ytrue_
             # update the ratio
             ratio = min(target_number / filter_rate / len(df_valid), 1)
         
-    if (len(oppo) < 50) or (not flag):
+    if len(oppo) < 50:
         return None
         
     oppo['top_percent'] = len(oppo) / len(df_valid)
