@@ -52,50 +52,64 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
     return pd.DataFrame(np.array(remaining))
 
 
-def find_top_percent(df, col, target_number, target_ratio, total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
+def find_top_percent(df, col, target_number, target_ratio, target_return, ytrue_col,
+                     total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
                      tolerance=0.01, termination=10):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
     """
-    assert (target_ratio is not None) or (target_number is not None)
-
-    if (target_number is None) and (not filter_first):
-        target_number = int(total_number * target_ratio)
+    assert (target_ratio is not None) or (target_number is not None) or (target_return is not None)
 
     df_valid = df[df[col].notna() & ~df['nearLimit']]
     if len(df_valid) == 0:
         return None
-    
-    if filter_first:
-        df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount)
-        target_number = len(df_pass_filter) * target_ratio
 
-    target_number = math.ceil(target_number * (1 - (df.loc[df[col].isna() | df['nearLimit'], 'time']//1e6).nunique() / total_number))
-    # exclude some special cases
-    if (target_number < 50) or (len(df_valid) < target_number):
-        return None
+    if target_return is not None:
+        ratio = .05
+        for _ in range(termination):
+            oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
+            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+            vw_ret = weighted_average(oppo[ytrue_col], oppo['availNtl']) * 1e4
+            if abs(vw_ret - target_return) < tolerance * target_return:
+                break
+            
+            ratio = ratio * vw_ret / target_return
 
-    # pick the top x percentile first
-    ratio = target_number / len(df_valid)
-    filter_rate = 0
+        return oppo
+    else:
+        if target_ratio is not None:
+            if filter_first:
+                df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount)
+                target_number = len(df_pass_filter) * target_ratio
+            else:
+                target_number = int(total_number * target_ratio)
 
-    for _ in range(termination):
-        oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
-        oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+        target_number = math.ceil(target_number * (1 - (df.loc[df[col].isna() | df['nearLimit'], 'time']//1e6).nunique() / total_number))
+        # exclude some special cases
+        if (target_number < 50) or (len(df_valid) < target_number):
+            return None
 
-        if abs(len(oppo) - target_number) < tolerance * target_number:
-            break
+        # pick the top x percentile first
+        ratio = target_number / len(df_valid)
+        filter_rate = 0
+
+        for _ in range(termination):
+            oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
+            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+
+            if abs(len(oppo) - target_number) < tolerance * target_number:
+                break
+            
+            # update the estimation of the filter rate
+            filter_rate = 1/3 * filter_rate + 2/3 * len(oppo) / len(oppo_index)
+            # update the ratio
+            ratio = min(target_number / filter_rate / len(df_valid), 1)
         
-        # update the estimation of the filter rate
-        filter_rate = 1/3 * filter_rate + 2/3 * len(oppo) / len(oppo_index)
-        # update the ratio
-        ratio = min(target_number / filter_rate / len(df_valid), 1)
-    
-    if len(oppo) < 50:
-        return None
-        
-    oppo['top_percent'] = len(oppo) / len(df_valid)
-    return oppo
+        if len(oppo) < 50:
+            return None
+            
+        oppo['top_percent'] = len(oppo) / len(df_valid)
+        return oppo
 
 def weighted_average(values, weights):
     indices = ~np.isnan(values)
