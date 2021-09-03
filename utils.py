@@ -52,7 +52,7 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
     return pd.DataFrame(np.array(remaining))
 
 
-def find_top_percent(df, col, target_number, target_ratio, total_number, filter_first, min_time=1, min_volume=None, min_amount=50000,
+def find_top_percent(df, col, target_number, target_ratio, total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
                      tolerance=0.01, termination=10):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
@@ -65,35 +65,31 @@ def find_top_percent(df, col, target_number, target_ratio, total_number, filter_
     df_valid = df[df[col].notna() & ~df['nearLimit']]
     if len(df_valid) == 0:
         return None
-
+    
     if filter_first:
-        assert target_ratio is not None
-        # apply the filter first
         df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount)
+        target_number = len(df_pass_filter) * target_ratio
+
+    target_number = math.ceil(target_number * (1 - (df.loc[df[col].isna() | df['nearLimit'], 'time']//1e6).nunique() / total_number))
+    # exclude some special cases
+    if (target_number < 50) or (len(df_valid) < target_number):
+        return None
+
+    # pick the top x percentile first
+    ratio = target_number / len(df_valid)
+    filter_rate = 0
+
+    for _ in range(termination):
+        oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
+        oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+
+        if abs(len(oppo) - target_number) < tolerance * target_number:
+            break
         
-        oppo = df_pass_filter[df_pass_filter[col] > df_pass_filter[col].quantile(1 - target_ratio)]
-    else:
-        assert target_number is not None
-        target_number = math.ceil(target_number * (1 - (df.loc[df[col].isna() | df['nearLimit'], 'time']//1e6).nunique() / total_number))
-        # exclude some special cases
-        if (target_number < 50) or (len(df_valid) < target_number):
-            return None
-
-        # pick the top x percentile first
-        ratio = target_number / len(df_valid)
-        filter_rate = 0
-
-        for _ in range(termination):
-            oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
-            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
-
-            if abs(len(oppo) - target_number) < tolerance * target_number:
-                break
-            
-            # update the estimation of the filter rate
-            filter_rate = 1/3 * filter_rate + 2/3 * len(oppo) / len(oppo_index)
-            # update the ratio
-            ratio = min(target_number / filter_rate / len(df_valid), 1)
+        # update the estimation of the filter rate
+        filter_rate = 1/3 * filter_rate + 2/3 * len(oppo) / len(oppo_index)
+        # update the ratio
+        ratio = min(target_number / filter_rate / len(df_valid), 1)
     
     if len(oppo) < 50:
         return None

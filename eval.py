@@ -9,7 +9,7 @@ from CephClient import CephClient
 from multiprocessing import Pool
 from functools import partial
 from tqdm import tqdm
-from HPCutils import get_job_list
+from HPCutils import get_job_list, submit
 import yaml
 
 class StaAlphaEval():
@@ -45,4 +45,27 @@ class StaAlphaEval():
 
 
 if __name__ == "__main__":
-    pass
+    sta_input = '/home/marlowe_zhong/eva/sta_input_demo.yaml'
+    cwd = os.getcwd()
+    
+    map_sh = f'''#!/bin/sh
+#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
+#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
+#SBATCH --mem-per-cpu=4G --ntasks=1
+#SBATCH --time=20:00
+#SBATCH --cpus-per-task=4
+#SBATCH --array=0-250
+srun -l python3 {cwd}/eval_map.py {sta_input}'''
+
+    map_job_id = submit(map_sh, dryrun=False)
+
+    reduce_sh = f'''#!/bin/sh
+#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
+#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
+#SBATCH --dependency=afterok:{map_job_id}
+#SBATCH --mem-per-cpu=4G --ntasks=1
+#SBATCH --time=5:00
+#SBATCH --cpus-per-task=2
+srun -l python3 {cwd}/eval_reduce.py {sta_input}'''
+
+    reduce_sh_id = submit(reduce_sh, dryrun=False)

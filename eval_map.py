@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from collections import defaultdict
 import pandas as pd
 import numpy as np
@@ -255,7 +256,7 @@ def _get_eva_md(tstock, forward_period, backward_period):
             
 
 if __name__ == "__main__":
-    sta_input = '/home/marlowe_zhong/eva/sta_input_demo.yaml'
+    sta_input = sys.argv[1]
     sta_eval_run = StaAlphaEvalMap(sta_input)
 
     # sta_eval_run.generate_daily_sta_cutoff(20200120)

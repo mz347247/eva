@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from collections import defaultdict
 import pandas as pd
 import numpy as np
@@ -433,8 +434,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_total['base_ret'] = df_total.groupby(['exchange', 'side'])['base_ret'].bfill()
 
         df_total['improvement(%)'] = (df_total['vwActualRetAvg']/df_total['base_ret'] - 1) * 100
+
+        df_total['topPercent'] = df_total['topPercent'] * 100
+        df_total.rename(columns={'topPercent':'topPercent(%)'}, inplace=True)
         
-        for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','improvement(%)','availNtl', 'countOppo', 'topPercent']:
+        for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','improvement(%)','availNtl', 'countOppo', 'topPercent(%)']:
             df_total[col] = df_total[col].map(lambda x: "{:.2f}".format(x))
 
         # add bold font
@@ -622,7 +626,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
         return '\n'.join(reports)
 
 if __name__ == "__main__":
-    sta_input = '/home/marlowe_zhong/eva/sta_input_demo.yaml'
+    sta_input = sys.argv[1]
     sta_eval_run = StaAlphaEvalReduce(sta_input)
     
     sta_eval_run.alpha_eval()
