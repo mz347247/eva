@@ -195,7 +195,7 @@ class StaAlphaEvalMap(StaAlphaEval):
         # save df_daily
         df_daily = pd.concat(df_daily).reset_index(drop=True)
         os.makedirs(os.path.join(self.cutoff_path, 'daily'), exist_ok = True)
-        df_daily.to_pickle(os.path.join(self.cutoff_path, 'daily', f'df_{self.target_cut}_{date}.pkl'), protocol = 4)
+        df_daily.to_pickle(os.path.join(self.cutoff_path, 'daily', f'df_{self.target_cut}_{self.eval_focus}_{date}.pkl'), protocol = 4)
 
         # save df_intra
         df_intra = pd.concat(df_intra, ignore_index=True)
@@ -205,14 +205,13 @@ class StaAlphaEvalMap(StaAlphaEval):
         
         df_intra_stat = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'])[['skey', 'availNtl']]
                                  .agg(countOppo=('skey', 'count'),
-                                      countStock=('skey', 'nunique'),
                                       availNtlSum=('availNtl', 'sum')))
         df_intra_stat[f'vwActualRetAvg'] = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'])
                                                     .apply(lambda x: weighted_average(x[self.target_ret],
                                                                                       weights=x['availNtl'])))
         df_intra_stat = df_intra_stat.reset_index()
         os.makedirs(os.path.join(self.cutoff_path, 'intraday'), exist_ok = True)
-        df_intra_stat.to_pickle(os.path.join(self.cutoff_path, 'intraday', f'df_{self.target_cut}_{date}.pkl'), protocol = 4)
+        df_intra_stat.to_pickle(os.path.join(self.cutoff_path, 'intraday', f'df_{self.target_cut}_{self.eval_focus}_{date}.pkl'), protocol = 4)
 
     def generate_sta_cutoff(self, dates):
         if self.machine=='personal-server':
@@ -285,24 +284,23 @@ def _get_eva_md(tstock, forward_period, backward_period):
 
 if __name__ == "__main__":
     
-
-    sta_input = '/home/marlowe/Marlowe/eva/sta_input_demo.yaml'
-    sta_eval_run = StaAlphaEvalMap(sta_input)
-    sta_eval_run.generate_daily_sta_cutoff(20200102)
-
-    # sta_input = sys.argv[1]
+    # sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
     # sta_eval_run = StaAlphaEvalMap(sta_input)
+    # sta_eval_run.generate_daily_sta_cutoff(20200103)
 
-    # paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
-    # dates = []
-    # for path in paths:
-    #     date = path.split("/")[-1].split(".")[0]
-    #     if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
-    #         dates.append(int(date))
+    sta_input = sys.argv[1]
+    sta_eval_run = StaAlphaEvalMap(sta_input)
 
-    # # dates = [20200102, 20200103, 20200106, 20200107]
-    # print(len(dates))
-    # sta_eval_run.generate_sta_cutoff(dates)
+    paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
+    dates = []
+    for path in paths:
+        date = path.split("/")[-1].split(".")[0]
+        if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
+            dates.append(int(date))
+
+    # dates = [20200102, 20200103, 20200106, 20200107]
+    print(len(dates))
+    sta_eval_run.generate_sta_cutoff(dates)
 
     # partial_func = partial(_get_daily_sta_cutoff, sta_input=sta_input)
     # with Pool(4) as p:

@@ -54,21 +54,22 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
 
 def find_top_percent(df, col, target_number, target_ratio, target_return_col, ytrue_col,
                      total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
-                     tolerance=0.05, termination=10):
+                     tolerance=0.05, termination=20):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
     """
     assert (target_ratio is not None) or (target_number is not None) or (target_return_col is not None)
 
-    df_valid = df[df[col].notna() & ~df['nearLimit']]
+    df_valid = df[df[col].notna() & df[ytrue_col].notna() & (~df['nearLimit'])]
     if len(df_valid) < 100:
         return None
 
-    flag = False
     if target_return_col is not None:
         target_return = df_valid[target_return_col].iloc[0]
         if np.isnan(target_return):
             return None
+
+        target_return = max(2e-4, target_return)
         low = 50
         high = len(df_valid)
 

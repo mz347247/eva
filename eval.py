@@ -26,11 +26,10 @@ class StaAlphaEval():
         self.eval_alpha = dict_yaml['eval_alpha']
         self.target_ret = dict_yaml['target_return']
         self.target_cut = dict_yaml['target_cut']
+        self.eval_focus = dict_yaml['eval_focus']
         self.lookback_window = dict_yaml['lookback_window']
         self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
-
-        self.eval_focus = dict_yaml['eval_focus']
         
         if self.machine == "personal-server":
             self.stock_reader = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
@@ -45,14 +44,14 @@ class StaAlphaEval():
 
 
 if __name__ == "__main__":
-    sta_input = '/home/marlowe_zhong/eva/sta_input_demo.yaml'
+    sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
     cwd = os.getcwd()
     
     map_sh = f'''#!/bin/sh
 #SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
 #SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
 #SBATCH --mem-per-cpu=4G --ntasks=1
-#SBATCH --time=20:00
+#SBATCH --time=30:00
 #SBATCH --cpus-per-task=4
 #SBATCH --array=0-250
 srun -l python3 {cwd}/eval_map.py {sta_input}'''
