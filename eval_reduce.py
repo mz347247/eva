@@ -53,8 +53,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_intraday = pd.concat([pd.read_pickle(path) for path in glob(f"{self.cutoff_path}/intraday/*.pkl")], 
                                    ignore_index=True)
 
-        self.intraday_stat = df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])[['countOppo', 'countStock']].sum()
-        self.intraday_stat['countOppo'] = self.intraday_stat['countOppo'] / self.intraday_stat['countStock']
+        self.intraday_stat = df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])[['countOppo']].mean()
+        self.intraday_stat['countOppo'] = self.intraday_stat['countOppo'] / len(stock_list)
         self.intraday_stat['vwActualRetAvg'] = (df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'])
                                                              .apply(lambda x: weighted_average(x['vwActualRetAvg'], weights=x['availNtlSum'])))
         self.intraday_stat['vwActualRetAvg'] = self.intraday_stat['vwActualRetAvg'] * 10000
@@ -65,7 +65,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
     def html_report(self):
         px.defaults.template = 'seaborn'
-        report_name = '_'.join([self.bench, self.eval_alpha[-1], self.target_cut, self.start_date, self.end_date]) + '.html'
+        report_name = '_'.join([self.bench, self.eval_alpha[-1], self.target_cut, self.eval_focus, 
+                                self.start_date, self.end_date]) + '.html'
         with open(os.path.join(self.eval_path, report_name), 'w') as f:
             f.write('''<html>\n<head><meta charset="utf-8" /></head>\n<body>\n''')
 
@@ -626,7 +627,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
         return '\n'.join(reports)
 
 if __name__ == "__main__":
-    sta_input = sys.argv[1]
+    # sta_input = sys.argv[1]
+    sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
     sta_eval_run = StaAlphaEvalReduce(sta_input)
     
     sta_eval_run.alpha_eval()
