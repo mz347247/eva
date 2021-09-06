@@ -43,26 +43,15 @@ class StaAlphaEvalMap(StaAlphaEval):
             self._filter_first = True
         
         self.eval_alpha_dict = defaultdict(list)
-        for i, alpha in enumerate(self.eval_alpha):
-            if (self.eval_focus == "oppo") and (i==0):
-                self.eval_alpha_dict['base'].append(alpha)
-            else:
-                self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
+        for alpha in self.eval_alpha:
+            self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
 
     def generate_daily_sta_cutoff(self, date):
         df_daily = []
         df_intra = []
 
-        if self.eval_focus == 'oppo':
-            base_return = {}
-
         # loop over alphas from mbd and lv2
-        for key, sta_ls in self.eval_alpha_dict.items():
-            if key == "base":
-                sta_type = sta_ls[0].split("_")[-1]
-            else:
-                sta_type = key
-
+        for sta_type, sta_ls in self.eval_alpha_dict.items():
             buy_sta_cols = []
             sell_sta_cols = []
             for ix, sta in enumerate(sta_ls):
@@ -121,6 +110,11 @@ class StaAlphaEvalMap(StaAlphaEval):
             df_alpha['mins_since_open'] = np.where(df_alpha['minute'] <= 690, df_alpha['minute'] - 570, df_alpha['minute'] - 660)
             df_alpha['buyAvailNtl'] = df_alpha['ask1p'] * df_alpha['ask1q']
             df_alpha['sellAvailNtl'] = df_alpha['bid1p'] * df_alpha['bid1q']
+
+            if self.eval_focus == "oppo":
+                df_target = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_l2/target_return/IC/top240/{date}.parquet',
+                                                       'sta_md_eq_cn', 'sta_ret_l2')
+
             basic_cols = ['skey','date','time','exchange','mins_since_open',
                           'nearLimit','cum_volume','cum_amount']
             for side in ['buy', 'sell']:
@@ -149,9 +143,10 @@ class StaAlphaEvalMap(StaAlphaEval):
 
                 total_number = 4800 if sta_type=="l2" else 14400
 
-                if (self.eval_focus == 'oppo') and (key!='base'):
-                    target_return_col = 'target_ret'
-                    df_side = df_side.merge(base_return[side], on=['skey', 'exchange', 'date'], how='left', validate='many_to_one')
+                if self.eval_focus == 'oppo':
+                    target_return_col = f'{side}Ret{self.target_horizon}s'
+                    df_side = df_side.merge(df_target[['skey', 'exchange', 'date', f'{side}Ret{self.target_horizon}s']], how='left', 
+                                            on=['skey', 'exchange', 'date'], validate="many_to_one")
                 else:
                     target_return_col = None
 
@@ -181,16 +176,23 @@ class StaAlphaEvalMap(StaAlphaEval):
                                                                                                 weights=x['availNtl'])))
                 stat_data_cutoff = stat_data_cutoff.reset_index()
 
-                # record the base return
-                if (self.eval_focus == 'oppo') and (key=='base'):
-                    base_return[side] = stat_data_cutoff[['skey', 'exchange', 'date', 'vwActualRetAvg']]
-                    base_return[side].columns = ['skey', 'exchange', 'date', 'target_ret']
+                # # record the target return
+                # if (self.eval_focus == 'oppo') and (key=='base'):
+                #     base_return[side] = stat_data_cutoff[['skey', 'exchange', 'date', 'vwActualRetAvg']]
+                #     base_return[side].columns = ['skey', 'exchange', 'date', 'target_ret']
 
                 stat_data = pd.merge(stat_data_all, stat_data_cutoff, on=['skey', 'exchange', 'date', 'sta_cat'], how='left', validate='one_to_one')
                 del stat_data_all, stat_data_cutoff
 
                 df_daily.append(stat_data)
                 df_intra.append(df_cutoff)
+
+        ## save the target return
+        # tmp_buy = base_return['buy'].rename(columns={'target_ret': 'buyRet90s'})
+        # tmp_sell = base_return['sell'].rename(columns={'target_ret': 'sellRet90s'})
+        # tmp_df = pd.merge(tmp_buy, tmp_sell, how='outer', on=['skey', 'exchange', 'date'], validate='one_to_one')
+        # self.sta_reader.write_df_to_ceph(tmp_df, f'/sta_md_eq_cn/sta_ret_l2/target_return/IC/top240/{date}.parquet', 'sta_md_eq_cn', 'sta_ret_l2')
+        # del tmp_buy, tmp_sell
 
         # save df_daily
         df_daily = pd.concat(df_daily).reset_index(drop=True)

@@ -60,13 +60,13 @@ srun -l python3 {cwd}/eval_map.py {sta_input}'''
 
     map_job_id = submit(map_sh, dryrun=False)
 
-    reduce_sh = f'''#!/bin/sh
-#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
-#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
-#SBATCH --dependency=afterok:{map_job_id}
-#SBATCH --mem-per-cpu=4G --ntasks=1
-#SBATCH --time=5:00
-#SBATCH --cpus-per-task=2
-srun -l python3 {cwd}/eval_reduce.py {sta_input}'''
+#     reduce_sh = f'''#!/bin/sh
+# #SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
+# #SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
+# #SBATCH --dependency=afterok:{map_job_id}
+# #SBATCH --mem-per-cpu=4G --ntasks=1
+# #SBATCH --time=5:00
+# #SBATCH --cpus-per-task=2
+# srun -l python3 {cwd}/eval_reduce.py {sta_input}'''
 
-    reduce_sh_id = submit(reduce_sh, dryrun=False)
+#     reduce_sh_id = submit(reduce_sh, dryrun=False)
