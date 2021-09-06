@@ -41,6 +41,8 @@ class StaAlphaEval():
         elif self.machine == "HPC":
             self.stock_reader = AShareReader()
             self.sta_reader = CephClient()
+        else:
+            raise ValueError(f"Invalid Input machine: {self.machine}")
 
 
 if __name__ == "__main__":
