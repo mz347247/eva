@@ -33,7 +33,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
     def alpha_eval(self):
         self.daily_stat = pd.concat([pd.read_pickle(path) for path in glob(f"{self.cutoff_path}/daily/*.pkl")], 
-                                  ignore_index=True)
+                                    ignore_index=True)
         for col in ['yHatHurdle','yHatAvg', 'actualRetAvg', 'vwActualRetAvg']:
             self.daily_stat[col] = self.daily_stat[col] * 10000
         self.daily_stat['datetime'] = pd.to_datetime(self.daily_stat['date'].astype('str'))
@@ -86,39 +86,60 @@ class StaAlphaEvalReduce(StaAlphaEval):
             table2 = self.sta_cutoff_summary_html()
             f.write(table2 + '\n')
             
-            # performance by side
-            f.write("<h2>performance for different side</h2>" + "\n")
-            figs = self.performance_by_side_html()
-            f.write(figs + '\n')
-
-            # performance by price group
-            f.write("<h2>performance for different price group</h2>" + "\n")
-            figs = self.performance_by_price_group_html()
-            f.write(figs + '\n')
+            if self.eval_focus in ['ret', 'mixed']:
+                # performance by side
+                f.write("<h2>performance for different side</h2>" + "\n")
+                figs = self.performance_by_side_html()
+                f.write(figs + '\n')
+                # performance by price group
+                f.write("<h2>performance for different price group</h2>" + "\n")
+                figs = self.performance_by_price_group_html()
+                f.write(figs + '\n')
+            if self.eval_focus in ['oppo', 'mixed']:
+                # opportunities by side
+                f.write("<h2>opportunities for different side</h2>" + "\n")
+                figs = self.opportunities_by_side_html()
+                f.write(figs + '\n')
+                # performance by price group
+                f.write("<h2>opportunities for different price group</h2>" + "\n")
+                figs = self.opportunities_by_price_group_html()
+                f.write(figs + '\n')
 
             # daily yHatAvg
-            f.write(f"<h2>{self.target_cut} yHatHurdle</h2>" + "\n")
+            f.write(f"<h2>daily average yHatHurdle</h2>" + "\n")
             figs = self.daily_yHatHurdle_html()
             f.write(figs + '\n')
 
-            # monthly realized return
-            f.write("<h2>monthly realized return</h2>" + "\n")
-            figs = self.monthly_realized_return_html()
-            f.write(figs + '\n')
+            if self.eval_focus in ['ret', 'mixed']:
+                # monthly realized return
+                f.write("<h2>monthly realized return</h2>" + "\n")
+                figs = self.monthly_realized_return_html()
+                f.write(figs + '\n')
+            if self.eval_focus in ['oppo', 'mixed']:
+                # monthly realized return
+                f.write("<h2>monthly number of opportunities</h2>" + "\n")
+                figs = self.monthly_opportunities_html()
+                f.write(figs + '\n')
+
+            if self.eval_focus in ['ret', 'mixed']:
+                # daily realized return
+                f.write("<h2>daily realized return</h2>" + "\n")
+                figs = self.daily_realized_return_html()
+                f.write(figs + '\n')
+            if self.eval_focus in ['oppo', 'mixed']:
+                # daily realized return
+                f.write("<h2>daily number of opportunities</h2>" + "\n")
+                figs = self.daily_opportunities_html()
+                f.write(figs + '\n')
 
             # daily realized return
-            f.write("<h2>daily realized return</h2>" + "\n")
-            figs = self.daily_realized_return_html()
+            f.write("<h2>daily average return across minutes since open</h2>" + "\n")
+            figs = self.intraday_realized_return_html()
             f.write(figs + '\n')
 
             # intraday number of opportunities
             f.write("<h2>daily average oppo. across minutes since open</h2>" + "\n")
             figs = self.intraday_opportunities_html()
-            f.write(figs + '\n')
-
-            # daily realized return
-            f.write("<h2>daily average return across minutes since open</h2>" + "\n")
-            figs = self.intraday_realized_return_html()
             f.write(figs + '\n')
             
             f.write('''\n</body>\n</html>''')
@@ -430,28 +451,37 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
         df_total.reset_index(inplace=True)
 
-        df_total['base_ret'] = np.where(df_total['sta_cat'] == self.eval_alpha[0], df_total['vwActualRetAvg'], np.nan)
-        df_total['base_ret'] = df_total.groupby(['exchange', 'side'])['base_ret'].ffill()
-        df_total['base_ret'] = df_total.groupby(['exchange', 'side'])['base_ret'].bfill()
-
-        df_total['improvement(%)'] = (df_total['vwActualRetAvg']/df_total['base_ret'] - 1) * 100
+        if self.eval_focus == 'oppo':
+            underlying_ls = ['countOppo']
+        elif self.eval_focus == 'ret':
+            underlying_ls = ['vwActualRetAvg']
+        else:
+            underlying_ls = ['countOppo', 'vwActualRetAvg']
+        for underlying in underlying_ls:
+            df_total['base'] = np.where(df_total['sta_cat'] == self.eval_alpha[0], df_total[underlying], np.nan)
+            df_total['base'] = df_total.groupby(['exchange', 'side'])['base'].ffill()
+            df_total['base'] = df_total.groupby(['exchange', 'side'])['base'].bfill()
+            
+            df_total[f'{underlying}<br>improvement(%)'] = (df_total[underlying]/df_total['base'] - 1) * 100
 
         df_total['topPercent'] = df_total['topPercent'] * 100
         df_total.rename(columns={'topPercent':'topPercent(%)'}, inplace=True)
         
-        for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','improvement(%)','availNtl', 'countOppo', 'topPercent(%)']:
+        for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','availNtl', 'countOppo', 'topPercent(%)'] + \
+                   [f'{underlying}<br>improvement(%)' for underlying in underlying_ls]:
             df_total[col] = df_total[col].map(lambda x: "{:.2f}".format(x))
 
         # add bold font
-        df_total['improvement(%)'] = "<b>" + df_total['improvement(%)'].astype(str) + "</b>"
+        for underlying in underlying_ls:
+            df_total[f'{underlying}<br>improvement(%)'] = "<b>" + df_total[f'{underlying}<br>improvement(%)'].astype(str) + "</b>"
 
-        df_total = df_total.drop("base_ret", axis=1)
+        df_total = df_total.drop("base", axis=1)
 
         fig = go.Figure(data=[go.Table(header=dict(values=[f'<b>{col}</b>' for col in df_total.columns],align=['center', 'center'],font_size=14,height=30),
                       cells=dict(values=[df_total[col] for col in df_total.columns], align=['center', 'center'],
                                 font_size=14,height=30))])
         fig.update_layout(font_family='sans-serif', title_text='overall performance outlook', title_x=0.5, title_yanchor='top', 
-                          width=self.html_width, height=(1+len(df_total)) * 30 + 60, autosize=False, 
+                          width=self.html_width, height=(1+len(df_total)) * 30 + 90, autosize=False, 
                           margin=dict(t=40, b=10, l=10, r=10))
 
         return io.to_html(fig, full_html=False, include_plotlyjs='cdn')
@@ -465,7 +495,20 @@ class StaAlphaEvalReduce(StaAlphaEval):
                         hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
                         category_orders={'sta_cat': self.eval_alpha})
         fig.update_layout(font_family='sans-serif',
-                          title=dict(text='all side - '+'actualRet90s', x=0.5, yanchor='top',font_size=18),
+                          title=dict(text='all side - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
+                          legend=dict(title_text="", bgcolor="LightSteelBlue"))
+
+        return self.to_html(fig)
+
+    def opportunities_by_side_html(self):
+        df_side = self.daily_stat.groupby(['side','sta_cat'])['countOppo'].mean()
+        df_side = df_side.reset_index()
+        fig = px.bar(df_side, x='side', y='countOppo', color='sta_cat', barmode='group', height=500, width=self.html_width,
+                        labels={'countOppo': 'num of oppo'},
+                        hover_data={'sta_cat':False, 'countOppo': ':.2f'},
+                        category_orders={'sta_cat': self.eval_alpha})
+        fig.update_layout(font_family='sans-serif',
+                          title=dict(text='all side - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                           legend=dict(title_text="", bgcolor="LightSteelBlue"))
 
         return self.to_html(fig)
@@ -492,7 +535,33 @@ class StaAlphaEvalReduce(StaAlphaEval):
                          hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'},
                          category_orders={'sta_cat': self.eval_alpha})
             fig.update_layout(font_family='sans-serif',
-                              title=dict(text=side+' side - '+'actualRet90s', x=0.5, yanchor='top',font_size=18),
+                              title=dict(text=side+' side - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
+                              legend=dict(title_text="", bgcolor="LightSteelBlue"))
+            reports.append(self.to_html(fig))
+
+        return '\n'.join(reports)
+
+    def opportunities_by_price_group_html(self):
+        reports = []
+        for side in ['buy','sell']:
+            df_total = (self.daily_stat.groupby(['side','price_group', 'sta_cat'])['countOppo'].mean())
+            df_total = df_total.reset_index()
+
+            df_side = df_total[df_total.side == side]
+            df_group_number = self.df_daily.groupby(['date','price_group'])['skey'].nunique().reset_index().groupby(['price_group'])['skey'].mean()
+            df_side = df_side.merge(df_group_number.reset_index(), on = 'price_group')
+            df_side['skey'] = df_side['skey'].map(lambda x:'('+str(int(x))+' stocks)')
+            df_side['price_group'] = df_side['price_group'] + df_side['skey']
+            
+            df_side['price_start'] = df_side['price_group'].map(lambda x:int(x.split('-')[0]))
+            df_side = df_side.sort_values('price_start').reset_index(drop = True)
+            df_side.drop(columns = ['price_start'], inplace = True)
+            fig = px.bar(df_side, x='price_group', y='countOppo', color='sta_cat', barmode='group', height=500, width=self.html_width,
+                         labels={'price_group': 'price group', 'countOppo': 'num of oppo'},
+                         hover_data={'sta_cat':False, 'countOppo': ':.2f'},
+                         category_orders={'sta_cat': self.eval_alpha})
+            fig.update_layout(font_family='sans-serif',
+                              title=dict(text=side+' side - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                               legend=dict(title_text="", bgcolor="LightSteelBlue"))
             reports.append(self.to_html(fig))
 
@@ -526,8 +595,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_stats['vwActualRetAvg'] = (self.daily_stat.groupby([stats_horizon,'exchange','side','sta_cat'])
                                                      .apply(lambda x: weighted_average(x['vwActualRetAvg'], weights=x['availNtlSum'])))
         df_stats = df_stats.reset_index()
-        fig = plt.figure(figsize=(16, 20))
-        plt.suptitle('monthly realized return', fontsize = 25)
+
         for side in ['buy','sell']:
             for ex in ['SH','SZ']:
                 df_hist = df_stats.loc[(df_stats.side == side) & 
@@ -540,6 +608,30 @@ class StaAlphaEvalReduce(StaAlphaEval):
                              category_orders={'sta_cat': self.eval_alpha})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
+                                  legend=dict(title_text="", bgcolor="LightSteelBlue"))
+                reports.append(self.to_html(fig))
+
+        return '\n'.join(reports)
+
+    def monthly_opportunities_html(self):
+        reports = []
+        stats_horizon = 'month'
+        df_stats = self.daily_stat.groupby([stats_horizon,'exchange','side','sta_cat'])[['datetime']].first()
+        df_stats['countOppo'] = (self.daily_stat.groupby([stats_horizon,'exchange','side','sta_cat'])['countOppo'].mean())
+        df_stats = df_stats.reset_index()
+
+        for side in ['buy','sell']:
+            for ex in ['SH','SZ']:
+                df_hist = df_stats.loc[(df_stats.side == side) & 
+                                    (df_stats.exchange == ex), [stats_horizon,'sta_cat'] + ['countOppo']].reset_index()
+                if len(df_hist) == 0:
+                    continue
+                fig = px.bar(df_hist, x=stats_horizon, y='countOppo', color='sta_cat', barmode='group', 
+                             height=500, width=self.html_width,labels={'countOppo': 'num of oppo'},
+                             hover_data={'sta_cat':False, 'countOppo': ':.2f'},
+                             category_orders={'sta_cat': self.eval_alpha})
+                fig.update_layout(font_family='sans-serif',
+                                  title=dict(text=side+' side - '+ex+' - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
                 reports.append(self.to_html(fig))
 
@@ -565,6 +657,30 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
                 fig.update_yaxes(zeroline=True, zerolinewidth=2, zerolinecolor='grey')
+                fig.update_xaxes(range=(df_hist['datetime'].min() - pd.offsets.Day(5), df_hist['datetime'].max() + pd.offsets.Day(5)),
+                                 rangeslider_visible=True)
+                reports.append(self.to_html(fig))
+        
+        return '\n'.join(reports)
+
+    def daily_opportunities_html(self):
+        reports = []
+        df_stats = self.daily_stat.groupby(['date','exchange','side','sta_cat'])[['datetime']].first()
+        df_stats['countOppo'] = (self.daily_stat.groupby(['date','exchange','side','sta_cat'])['countOppo'].mean())
+        df_stats = df_stats.reset_index()
+        for side in ['buy','sell']:
+            for ex in ['SH','SZ']:
+                df_hist = (df_stats.loc[(df_stats.side == side) & (df_stats.exchange == ex), ['datetime','sta_cat'] + ['countOppo']].reset_index())
+                if len(df_hist) == 0:
+                    continue
+                
+                fig = px.line(df_hist, x='datetime', y='countOppo', color='sta_cat', height=600, width=self.html_width,
+                              labels={'datetime': 'date', 'countOppo': 'num of oppo'},
+                              hover_data={'sta_cat':False, 'countOppo': ':.2f'},
+                              category_orders={'sta_cat': self.eval_alpha})
+                fig.update_layout(font_family='sans-serif',
+                                  title=dict(text=side+' side - '+ex+' - '+'countOppo', x=0.5, yanchor='top',font_size=18),
+                                  legend=dict(title_text="", bgcolor="LightSteelBlue"))
                 fig.update_xaxes(range=(df_hist['datetime'].min() - pd.offsets.Day(5), df_hist['datetime'].max() + pd.offsets.Day(5)),
                                  rangeslider_visible=True)
                 reports.append(self.to_html(fig))
