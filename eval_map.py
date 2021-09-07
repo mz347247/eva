@@ -41,10 +41,6 @@ class StaAlphaEvalMap(StaAlphaEval):
 
         if self.eval_focus == 'mixed':
             self._filter_first = True
-        
-        self.eval_alpha_dict = defaultdict(list)
-        for alpha in self.eval_alpha:
-            self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
 
     def generate_daily_sta_cutoff(self, date):
         df_daily = []
@@ -68,28 +64,38 @@ class StaAlphaEvalMap(StaAlphaEval):
             universe = self.stock_reader.Read_Stock_Daily('com_md_eq_cn', f"chnuniv_{self.bench.lower()}", date, date).skey.unique()
             df_sta = df_sta[df_sta.skey.isin(universe)].reset_index(drop=True)
 
-            # TODO: no need to read ask5q and bid5q if we have near limit status in DFS
-            # TODO: tempararily modify this
-            df_md = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_{sta_type}', start_date=date, end_date=date, 
-                                       stock_list=universe, cols_list=['skey', 'date', 'time', 'clockAtArrival', 'ordering', 
-                                                                       'ask1p', 'ask1q', 'bid1p', 'bid1q', 'ask5q', 'bid5q',
-                                                                       'cum_volume', 'cum_amount', 'ApplSeqNum'])
-            # if sta_type == 'mbd':
-            #     tmp = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_l2', start_date=date, end_date=date, 
-            #                                             stock_list=universe, cols_list=['skey', 'date','ApplSeqNum'])
-            #     df_md = df_md[df_md.ApplSeqNum >= 0]
-            #     tmp = tmp[tmp.ApplSeqNum >= 0]
-            #     df_md = pd.merge(tmp, df_md, how='left', on=['skey', 'date','ApplSeqNum'], validate='many_to_one')
-            #     df_md = df_md.drop_duplicates(subset=['skey', 'date', 'ordering']).sort_values(['skey', 'time'])
-            #     del tmp
-            
-            df_md = df_md[(df_md.bid1p != 0) | (df_md.ask1p != 0)].reset_index(drop=True)
-            
-            # TODO: modify this when true return and near limit status is ready in DFS
-            df_md['datetime'] = (df_md.date.astype(str).apply(lambda x: x[:4] + "-" + x[4:6] + "-" + x[6:]) + " " + 
-                                 df_md.time.astype(int).astype(str).str.zfill(12).apply(lambda x: x[:2] + ":" + x[2:4] + ":" + x[4:6]))
-            df_md['datetime'] = pd.to_datetime(df_md['datetime'])
-            df_md = _get_eva_md(df_md, self.target_horizon, self.lookback_window)
+            if self.compute_ret:
+                df_md = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_{sta_type}', start_date=date, end_date=date, 
+                                        stock_list=universe, cols_list=['skey', 'date', 'time', 'clockAtArrival', 'ordering', 
+                                                                        'ask1p', 'ask1q', 'bid1p', 'bid1q', 'ask5q', 'bid5q',
+                                                                        'cum_volume', 'cum_amount', 'ApplSeqNum'])
+                # if sta_type == 'mbd':
+                #     tmp = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_l2', start_date=date, end_date=date, 
+                #                                             stock_list=universe, cols_list=['skey', 'date','ApplSeqNum'])
+                #     df_md = df_md[df_md.ApplSeqNum >= 0]
+                #     tmp = tmp[tmp.ApplSeqNum >= 0]
+                #     df_md = pd.merge(tmp, df_md, how='left', on=['skey', 'date','ApplSeqNum'], validate='many_to_one')
+                #     df_md = df_md.drop_duplicates(subset=['skey', 'date', 'ordering']).sort_values(['skey', 'time'])
+                #     del tmp
+                
+                df_md = df_md[(df_md.bid1p != 0) | (df_md.ask1p != 0)].reset_index(drop=True)
+                
+                # TODO: modify this when true return and near limit status is ready in DFS
+                df_md['datetime'] = (df_md.date.astype(str).apply(lambda x: x[:4] + "-" + x[4:6] + "-" + x[6:]) + " " + 
+                                    df_md.time.astype(int).astype(str).str.zfill(12).apply(lambda x: x[:2] + ":" + x[2:4] + ":" + x[4:6]))
+                df_md['datetime'] = pd.to_datetime(df_md['datetime'])
+                df_md = _get_eva_md(df_md, self.target_horizon, self.lookback_window)
+            else:
+                df_ret = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_{sta_type}/actual_return/{self.bench}/{date}.parquet', 
+                                                    'sta_md_eq_cn', f'sta_ret_{sta_type}')
+                df_md = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_md_{sta_type}/{self.bench}/{date}.parquet', 
+                                                    'sta_md_eq_cn', f'sta_md_{sta_type}')
+                df_md = pd.merge(df_md[['skey', 'date', 'time','datetime', 'ordering', 
+                                        'ask1p', 'ask1q', 'bid1p', 'bid1q', 'ask5q', 'bid5q',
+                                        'cum_volume', 'cum_amount', f'nearLimit{self.lookback_window}s']],
+                                 df_ret[['skey', 'date', 'ordering', f'buyRet{self.target_horizon}s', f'sellRet{self.target_horizon}s']],
+                                 on = ['skey','date','ordering'], how = 'left', validate = 'one_to_one')
+                del df_ret
 
             df_md = df_md[((df_md['time'] >= 9.3 * 1e10) & (df_md['time'] <= 11.3 * 1e10)) |
                           ((df_md['time'] >= 13 * 1e10) & (df_md['time'] < 14.5655 * 1e10))].reset_index(drop=True)

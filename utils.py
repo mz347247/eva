@@ -59,7 +59,7 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None, strict=
 
 
 def find_top_percent(df, col, target_number, target_ratio, target_return_col, ytrue_col,
-                     total_number, filter_first, min_time=1, min_volume=1500, min_amount=15000, strict=True,
+                     total_number, filter_first, min_time=1, min_volume=1000, min_amount=15000, strict=True,
                      tolerance=0.05, termination=20):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
@@ -67,7 +67,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
     assert (target_ratio is not None) or (target_number is not None) or (target_return_col is not None)
 
     df_valid = df[df[col].notna() & df[ytrue_col].notna() & (~df['nearLimit'])]
-    if len(df_valid) < 100:
+    if len(df_valid) == 0:
         return None
 
     if target_return_col is not None:
@@ -103,7 +103,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
 
         target_number = math.ceil(target_number * (1 - (df.loc[df[col].isna() | df['nearLimit'], 'time']//1e6).nunique() / total_number))
         # exclude some special cases
-        if (target_number < 50) or (len(df_valid) < target_number):
+        if (target_number <= 0) or (len(df_valid) < target_number):
             return None
 
         # pick the top x percentile first
@@ -122,8 +122,8 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
             # update the ratio
             ratio = min(target_number / filter_rate / len(df_valid), 1)
         
-    if len(oppo) < 50:
-        return None
+    # if len(oppo) < 50:
+    #     return None
         
     oppo['top_percent'] = len(oppo) / len(df_valid)
     return oppo

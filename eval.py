@@ -21,6 +21,7 @@ class StaAlphaEval():
 
         self.machine = dict_yaml['machine']
         self.bench = dict_yaml['bench']
+        self.hpc_njobs = dict_yaml['hpc_njobs']
         self.start_date = str(dict_yaml['start_date'])
         self.end_date = str(dict_yaml['end_date'])
         self.eval_alpha = dict_yaml['eval_alpha']
@@ -28,6 +29,8 @@ class StaAlphaEval():
         self.target_cut = dict_yaml['target_cut']
         self.eval_focus = dict_yaml['eval_focus']
         self.lookback_window = dict_yaml['lookback_window']
+        self.compute_ret = dict_yaml['compute_ret']        
+
         self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
         
@@ -43,19 +46,28 @@ class StaAlphaEval():
             self.sta_reader = CephClient()
         else:
             raise ValueError(f"Invalid Input machine: {self.machine}")
+        
+        self.eval_alpha_dict = defaultdict(list)
+        for alpha in self.eval_alpha:
+            self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
 
 
 if __name__ == "__main__":
     sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
+    sta_eval_run = StaAlphaEval(sta_input)
+    if 'mbd' in sta_eval_run.eval_alpha_dict:
+        mem = '6G'
+    else:
+        mem = '4G'
     cwd = os.getcwd()
     
     map_sh = f'''#!/bin/sh
 #SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
 #SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
-#SBATCH --mem-per-cpu=4G --ntasks=1
+#SBATCH --mem-per-cpu={mem} --ntasks=1
 #SBATCH --time=30:00
 #SBATCH --cpus-per-task=4
-#SBATCH --array=0-250
+#SBATCH --array=0-{sta_eval_run.hpc_njobs}
 srun -l python3 {cwd}/eval_map.py {sta_input}'''
 
     map_job_id = submit(map_sh, dryrun=False)
