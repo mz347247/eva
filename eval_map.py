@@ -91,7 +91,7 @@ class StaAlphaEvalMap(StaAlphaEval):
                 df_md = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_md_{sta_type}/{self.bench}/{date}.parquet', 
                                                     'sta_md_eq_cn', f'sta_md_{sta_type}')
                 df_md = pd.merge(df_md[['skey', 'date', 'time','datetime', 'ordering', 
-                                        'ask1p', 'ask1q', 'bid1p', 'bid1q', 'ask5q', 'bid5q',
+                                        'ask1p', 'ask1q', 'bid1p', 'bid1q',
                                         'cum_volume', 'cum_amount', f'nearLimit{self.lookback_window}s']],
                                  df_ret[['skey', 'date', 'ordering', f'buyRet{self.target_horizon}s', f'sellRet{self.target_horizon}s']],
                                  on = ['skey','date','ordering'], how = 'left', validate = 'one_to_one')
@@ -104,7 +104,7 @@ class StaAlphaEvalMap(StaAlphaEval):
             df_alpha = df_alpha.sort_values(['skey','date','ordering']).reset_index(drop=True)
             del df_md, df_sta
 
-            df_alpha['exchange'] = df_alpha['skey'].map(lambda x:str(x)[:1])
+            df_alpha['exchange'] = df_alpha['skey'].astype(str).str[:1]
             df_alpha['exchange'] = np.where(df_alpha['exchange'] == '1', 'SH', 'SZ')
 
             # TODO: modify this when we have SH mbd data
@@ -122,14 +122,16 @@ class StaAlphaEvalMap(StaAlphaEval):
                                                        'sta_md_eq_cn', 'sta_ret_l2')
 
             basic_cols = ['skey','date','time','exchange','mins_since_open',
-                          'nearLimit','cum_volume','cum_amount']
+                          'cum_volume','cum_amount']
             for side in ['buy', 'sell']:
                 if side == 'buy': 
-                    df_side = df_alpha[basic_cols + buy_sta_cols + ['buyAvailNtl', f"buyRet{self.target_horizon}s"]].copy()
+                    df_side = df_alpha[basic_cols + buy_sta_cols + 
+                                      ['buyAvailNtl', f"buyRet{self.target_horizon}s", f'nearLimit{self.lookback_window}s']].copy()
                 else: 
-                    df_side = df_alpha[basic_cols + sell_sta_cols + ['sellAvailNtl', f"sellRet{self.target_horizon}s"]].copy()
+                    df_side = df_alpha[basic_cols + sell_sta_cols + 
+                                      ['sellAvailNtl', f"sellRet{self.target_horizon}s", f'nearLimit{self.lookback_window}s']].copy()
 
-                df_side.columns = basic_cols + sta_ls + ['availNtl', self.target_ret]
+                df_side.columns = basic_cols + sta_ls + ['availNtl', self.target_ret, 'nearLimit']
                 
                 stat_data_all = (df_side.groupby(['skey', 'exchange', 'date'])[sta_ls + [self.target_ret]]
                                         .agg([('sum_x', 'sum'), ('count_x', 'count'),
@@ -144,7 +146,7 @@ class StaAlphaEvalMap(StaAlphaEval):
                                                     stat_data_all['sta_cat'])
                 stat_data_all['side'] = side
 
-                df_side = df_side.melt(id_vars=basic_cols + ['availNtl', self.target_ret], value_vars=sta_ls, 
+                df_side = df_side.melt(id_vars=basic_cols + ['availNtl', self.target_ret, 'nearLimit'], value_vars=sta_ls, 
                                        var_name="sta_cat", value_name='sta')
 
                 total_number = 4800 if sta_type=="l2" else 14400
@@ -292,23 +294,23 @@ def _get_eva_md(tstock, forward_period, backward_period):
 
 if __name__ == "__main__":
     
-    # sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
-    # sta_eval_run = StaAlphaEvalMap(sta_input)
-    # sta_eval_run.generate_daily_sta_cutoff(20200103)
-
-    sta_input = sys.argv[1]
+    sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
     sta_eval_run = StaAlphaEvalMap(sta_input)
+    sta_eval_run.generate_daily_sta_cutoff(20200103)
 
-    paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
-    dates = []
-    for path in paths:
-        date = path.split("/")[-1].split(".")[0]
-        if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
-            dates.append(int(date))
+    # sta_input = sys.argv[1]
+    # sta_eval_run = StaAlphaEvalMap(sta_input)
 
-    # dates = [20200102, 20200103, 20200106, 20200107]
-    print(len(dates))
-    sta_eval_run.generate_sta_cutoff(dates)
+    # paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
+    # dates = []
+    # for path in paths:
+    #     date = path.split("/")[-1].split(".")[0]
+    #     if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
+    #         dates.append(int(date))
+
+    # # dates = [20200102, 20200103, 20200106, 20200107]
+    # print(len(dates))
+    # sta_eval_run.generate_sta_cutoff(dates)
 
     # partial_func = partial(_get_daily_sta_cutoff, sta_input=sta_input)
     # with Pool(4) as p:
