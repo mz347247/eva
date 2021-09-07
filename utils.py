@@ -23,7 +23,7 @@ class NestablePool(multiprocessing.pool.Pool):
         kwargs['context'] = NoDaemonContext()
         super(NestablePool, self).__init__(*args, **kwargs)
 
-def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
+def interval_filter(df, min_time=None, min_volume=None, min_amount=None, strict=True):
     """
     filter out consecutive opportunities if the arrival time of the opportunities are too close
 
@@ -38,7 +38,7 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
 
     for oppo in records:
         if min_time is not None:
-            time_cond = (abs((oppo.time - remaining[-1].time) / 1e6) > min_time)
+            time_cond = ((oppo.time - remaining[-1].time) / 1e6 > min_time)
 
         if min_volume is not None:
             volume_cond = (oppo.cum_volume - remaining[-1].cum_volume > min_volume)
@@ -46,14 +46,20 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None):
         if min_amount is not None:
             amount_cond = (oppo.cum_amount - remaining[-1].cum_amount > min_amount)
 
-        if volume_cond and time_cond and amount_cond:
+        cond = time_cond
+        if strict:
+            cond = cond and (volume_cond and amount_cond)
+        else:
+            cond = cond and (volume_cond or amount_cond)
+
+        if cond:
             remaining.append(oppo)
 
     return pd.DataFrame(np.array(remaining))
 
 
 def find_top_percent(df, col, target_number, target_ratio, target_return_col, ytrue_col,
-                     total_number, filter_first, min_time=1, min_volume=1000, min_amount=None,
+                     total_number, filter_first, min_time=1, min_volume=1500, min_amount=15000, strict=True,
                      tolerance=0.05, termination=20):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering
@@ -76,7 +82,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
         for _ in range(termination):
             number = low + (high - low) // 2
             oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - number / len(df_valid))]
-            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount, strict)
             vw_ret = weighted_average(oppo[ytrue_col], oppo['availNtl'])
             if abs(vw_ret - target_return) < tolerance * abs(target_return):
                 break
@@ -90,7 +96,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
     else:
         if target_ratio is not None:
             if filter_first:
-                df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount)
+                df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount, strict)
                 target_number = len(df_pass_filter) * target_ratio
             else:
                 target_number = int(total_number * target_ratio)
@@ -106,7 +112,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
 
         for _ in range(termination):
             oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - ratio)]
-            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount)
+            oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount, strict)
 
             if abs(len(oppo) - target_number) < tolerance * target_number:
                 break

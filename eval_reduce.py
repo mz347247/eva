@@ -743,8 +743,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
         return '\n'.join(reports)
 
 if __name__ == "__main__":
-    # sta_input = sys.argv[1]
-    sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
+    sta_input = sys.argv[1]
+    # sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
     sta_eval_run = StaAlphaEvalReduce(sta_input)
     
     sta_eval_run.alpha_eval()
