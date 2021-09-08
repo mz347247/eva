@@ -21,7 +21,8 @@ class StaAlphaEval():
 
         self.machine = dict_yaml['machine']
         self.bench = dict_yaml['bench']
-        self.hpc_njobs = dict_yaml['hpc_njobs']
+        self.universe = dict_yaml['universe']
+        self.njobs = dict_yaml['njobs']
         self.start_date = str(dict_yaml['start_date'])
         self.end_date = str(dict_yaml['end_date'])
         self.eval_alpha = dict_yaml['eval_alpha']
@@ -29,10 +30,14 @@ class StaAlphaEval():
         self.target_cut = dict_yaml['target_cut']
         self.eval_focus = dict_yaml['eval_focus']
         self.lookback_window = dict_yaml['lookback_window']
-        self.compute_ret = dict_yaml['compute_ret']        
+        self.compute_ret = dict_yaml['compute_ret']    
 
-        self.eval_path = os.path.join(dict_yaml['save_path'], self.bench, self.eval_alpha[-1])
+        self.eval_path = os.path.join(dict_yaml['save_path'], self.universe, self.eval_alpha[-1]['name'])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
+
+        if ((self.machine == 'personal-server') and (self.njobs > 70)) or \
+           ((self.machine == 'HPC') and (self.njobs > 999)):
+           raise ValueError(f"Too many jobs {self.njobs} for the {self.machine}!")
         
         if self.machine == "personal-server":
             self.stock_reader = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
@@ -48,8 +53,8 @@ class StaAlphaEval():
             raise ValueError(f"Invalid Input machine: {self.machine}")
         
         self.eval_alpha_dict = defaultdict(list)
-        for alpha in self.eval_alpha:
-            self.eval_alpha_dict[alpha.split("_")[-1]].append(alpha)
+        for alpha_info in self.eval_alpha:
+            self.eval_alpha_dict[alpha_info['data_type']].append(alpha_info)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 import pandas as pd
 import numpy as np
+from traitlets.traitlets import observe
 from utils import *
 from AShareReader import AShareReader
 from CephClient import CephClient
@@ -12,6 +13,8 @@ from functools import partial
 from tqdm import tqdm
 from HPCutils import get_job_list
 from eval import StaAlphaEval
+from glob import glob
+from pandas.api.types import CategoricalDtype
 
 class StaAlphaEvalMap(StaAlphaEval):
 
@@ -45,24 +48,51 @@ class StaAlphaEvalMap(StaAlphaEval):
     def generate_daily_sta_cutoff(self, date):
         df_daily = []
         df_intra = []
+        sta_ls_all = []
+
+        if self.universe != 'custom':
+            universe = self.stock_reader.Read_Stock_Daily('com_md_eq_cn', f"chnuniv_{self.universe.lower()}", date, date).skey.unique()
 
         # loop over alphas from mbd and lv2
-        for sta_type, sta_ls in self.eval_alpha_dict.items():
+        for sta_type, sta_info_ls in self.eval_alpha_dict.items():
             buy_sta_cols = []
             sell_sta_cols = []
-            for ix, sta in enumerate(sta_ls):
-                tmp_sta = self.sta_reader.read_file(f"/sta_alpha_eq_cn/{sta}/IC/sta{date}.parquet", "sta_alpha_eq_cn", sta)
-                tmp_sta = tmp_sta.rename(columns={"yHatBuy": f"yHatBuy_{sta[4:]}", "yHatSell": f"yHatSell_{sta[4:]}"})
-                buy_sta_cols.append(f"yHatBuy_{sta[4:]}")
-                sell_sta_cols.append(f"yHatSell_{sta[4:]}")
+            sta_ls = []
+            for ix, sta_info in enumerate(sta_info_ls):
+                if sta_info['data_source'] == 'DFS':
+                    tmp_sta = self.sta_reader.read_file(sta_info['data_path'].format(date=date), 
+                                                        sta_info['pool_name'], sta_info['namespace'])
+                else:
+                    if '{skey}' in sta_info['data_path']:
+                        tmp_sta = pd.concat([pd.read_parquet(path) for path in glob(sta_info['data_path'].replace("{skey}", "*")
+                                                                                                         .format(date=date))],
+                                             ignore_index=True)
+                    else:
+                        tmp_sta = pd.read_parquet(sta_info['data_path'].format(date=date))
+
+                tmp_buy_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_list']['buy'], col)]
+                tmp_sell_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_list']['sell'], col)]
+                if len(tmp_buy_cols) == 1:
+                    sta_ls.append(sta_info['name'])
+                else:
+                    sta_ls += [sta_info['name'] + "_" + re.search(sta_info['alpha_list']['buy'], col).group('label') 
+                               + "_" + sta_type for col in tmp_buy_cols]
+                tmp_rename = {col : (sta_info['name'] + "_" + col) for col in tmp_buy_cols + tmp_sell_cols}
+                tmp_sta = tmp_sta.rename(columns=tmp_rename)
+                buy_sta_cols += [(sta_info['name'] + "_" + col) for col in tmp_buy_cols]
+                sell_sta_cols += [(sta_info['name'] + "_" + col) for col in tmp_sell_cols]
                 if ix == 0:
                     df_sta = tmp_sta
                 else:
                     df_sta = pd.merge(df_sta, tmp_sta, on=['skey', 'date', 'ordering'], how='outer', validate='one_to_one')
             del tmp_sta
 
-            universe = self.stock_reader.Read_Stock_Daily('com_md_eq_cn', f"chnuniv_{self.bench.lower()}", date, date).skey.unique()
-            df_sta = df_sta[df_sta.skey.isin(universe)].reset_index(drop=True)
+            sta_ls_all += sta_ls
+
+            if self.universe == 'custom':
+                universe = df_sta.skey.unique()
+            else:
+                df_sta = df_sta[df_sta.skey.isin(universe)].reset_index(drop=True)
 
             if self.compute_ret:
                 df_md = self.stock_reader.Read_Stock_Tick('com_md_eq_cn', f'md_snapshot_{sta_type}', start_date=date, end_date=date, 
@@ -97,8 +127,9 @@ class StaAlphaEvalMap(StaAlphaEval):
                                  on = ['skey','date','ordering'], how = 'left', validate = 'one_to_one')
                 del df_ret
 
-            df_md = df_md[((df_md['time'] >= 9.3 * 1e10) & (df_md['time'] <= 11.3 * 1e10)) |
-                          ((df_md['time'] >= 13 * 1e10) & (df_md['time'] < 14.5655 * 1e10))].reset_index(drop=True)
+            df_md = df_md[(df_md.skey.isin(universe)) & 
+                          (((df_md['time'] >= 9.3 * 1e10) & (df_md['time'] <= 11.3 * 1e10)) |
+                          ((df_md['time'] >= 13 * 1e10) & (df_md['time'] < 14.5655 * 1e10)))].reset_index(drop=True)
 
             df_alpha = df_md.merge(df_sta, on = ['skey','date','ordering'], how = 'left', validate = 'one_to_one')
             df_alpha = df_alpha.sort_values(['skey','date','ordering']).reset_index(drop=True)
@@ -123,6 +154,7 @@ class StaAlphaEvalMap(StaAlphaEval):
 
             basic_cols = ['skey','date','time','exchange','mins_since_open',
                           'cum_volume','cum_amount']
+            
             for side in ['buy', 'sell']:
                 if side == 'buy': 
                     df_side = df_alpha[basic_cols + buy_sta_cols + 
@@ -195,6 +227,8 @@ class StaAlphaEvalMap(StaAlphaEval):
                 df_daily.append(stat_data)
                 df_intra.append(df_cutoff)
 
+        sta_ls_all += [(self.target_ret + "_" + sta_type) for sta_type in self.eval_alpha_dict.keys()]
+
         ## save the target return
         # tmp_buy = base_return['buy'].rename(columns={'target_ret': 'buyRet90s'})
         # tmp_sell = base_return['sell'].rename(columns={'target_ret': 'sellRet90s'})
@@ -202,21 +236,24 @@ class StaAlphaEvalMap(StaAlphaEval):
         # self.sta_reader.write_df_to_ceph(tmp_df, f'/sta_md_eq_cn/sta_ret_l2/target_return/IC/top240/{date}.parquet', 'sta_md_eq_cn', 'sta_ret_l2')
         # del tmp_buy, tmp_sell
 
+        sta_cat_type = CategoricalDtype(categories=sta_ls_all, ordered=True)
         # save df_daily
-        df_daily = pd.concat(df_daily).reset_index(drop=True)
+        df_daily = pd.concat(df_daily, ignore_index=True)
+        df_daily['sta_cat'] = df_daily['sta_cat'].astype(sta_cat_type)
         os.makedirs(os.path.join(self.cutoff_path, 'daily'), exist_ok = True)
         df_daily.to_pickle(os.path.join(self.cutoff_path, 'daily', f'df_{self.target_cut}_{self.eval_focus}_{date}.pkl'), protocol = 4)
 
         # save df_intra
         df_intra = pd.concat(df_intra, ignore_index=True)
         df_intra = df_intra.dropna(subset=[self.target_ret]).reset_index(drop=True)
+        df_intra['sta_cat'] = df_intra['sta_cat'].astype(sta_cat_type)
         for col in ['date','skey','mins_since_open']:
             df_intra[col] = df_intra[col].astype('int32')
         
-        df_intra_stat = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'])[['skey', 'availNtl']]
+        df_intra_stat = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'], observed=True)[['skey', 'availNtl']]
                                  .agg(countOppo=('skey', 'count'),
                                       availNtlSum=('availNtl', 'sum')))
-        df_intra_stat[f'vwActualRetAvg'] = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'])
+        df_intra_stat[f'vwActualRetAvg'] = (df_intra.groupby(['exchange','date','side','sta_cat','mins_since_open'], observed=True)
                                                     .apply(lambda x: weighted_average(x[self.target_ret],
                                                                                       weights=x['availNtl'])))
         df_intra_stat = df_intra_stat.reset_index()
@@ -296,21 +333,21 @@ if __name__ == "__main__":
     
     sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
     sta_eval_run = StaAlphaEvalMap(sta_input)
-    sta_eval_run.generate_daily_sta_cutoff(20200103)
+    # sta_eval_run.generate_daily_sta_cutoff(20200701)
 
     # sta_input = sys.argv[1]
     # sta_eval_run = StaAlphaEvalMap(sta_input)
 
-    # paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
-    # dates = []
-    # for path in paths:
-    #     date = path.split("/")[-1].split(".")[0]
-    #     if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
-    #         dates.append(int(date))
+    paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
+    dates = []
+    for path in paths:
+        date = path.split("/")[-1].split(".")[0]
+        if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
+            dates.append(int(date))
 
     # # dates = [20200102, 20200103, 20200106, 20200107]
-    # print(len(dates))
-    # sta_eval_run.generate_sta_cutoff(dates)
+    print(len(dates))
+    sta_eval_run.generate_sta_cutoff(dates)
 
     # partial_func = partial(_get_daily_sta_cutoff, sta_input=sta_input)
     # with Pool(4) as p:
