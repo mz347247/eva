@@ -38,11 +38,11 @@ class StaAlphaEval():
         
         if self.machine == "personal-server":
             self.stock_reader = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                                          config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
-                                          KEYRING_LOC = '{0}/dfs/ceph.key.keyring'.format(os.environ['HOME']))
+                                             config_path = dict_yaml['dfs_config_path'],
+                                             KEYRING_LOC = dict_yaml['dfs_keyring_path'])
             self.sta_reader = CephClient(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                                        config_path='{0}/dfs/ceph.conf'.format(os.environ['HOME']),
-                                        KEYRING_LOC = '{0}/dfs/ceph.key.keyring'.format(os.environ['HOME']))
+                                         config_path = dict_yaml['dfs_config_path'],
+                                         KEYRING_LOC = dict_yaml['dfs_keyring_path'])
         elif self.machine == "HPC":
             self.stock_reader = AShareReader()
             self.sta_reader = CephClient()
