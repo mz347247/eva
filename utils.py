@@ -59,7 +59,7 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None, strict=
 
 
 def find_top_percent(df, col, target_number, target_ratio, target_return_col, ytrue_col,
-                     total_number, filter_first, min_time=1, min_volume=1000, min_amount=15000, strict=True,
+                     total_number, filter_first, min_time=1, min_volume=1500, min_amount=15000, strict=True,
                      tolerance=0.05, termination=20):
     """
     find out the top x percent opportunities so that there are target number of opportunities remaining after filtering

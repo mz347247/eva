@@ -2,6 +2,8 @@
 1. [Usage](#usage)
 2. [Configuration Parameter](#configuration-parameter)
 3. [Evaluation Method](#evaluation-method)
+4. [Intermediate Evaluation Statistics](#intermediate-evaluation-statistics)
+5. [Evaluation Report](#evaluation-report)
 
 ## **Usage**
 1. Modify the .yaml configuration file
@@ -10,6 +12,9 @@
     ``python eval_run.py <configuration file path>``
 
 3. Check the evaluation report saved in the assigned `save_path` in the configuration file
+
+### Prerequisite
+Please update your dfs api to jdfs > 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/rz475743/ceph_client).
 
 ### Example
 ``python eval_run.py sta_input_ps_example.yaml``
@@ -54,7 +59,7 @@ A list of data sources. Each source can contain multiple alphas or just one alph
 > **namespace** : ***str*** <br> This applies only if `data_source` is DFS. The namespace where the sta is stored
 
 ### **eval_focus** : ***{ret, oppo, mixed}***
-The evaluation method
+The evaluation method. Check this for more detailed description.
     
 - "ret" : compare the return with fixed number of opportunities to look at (for example 240)
 - "oppo" : compare the number of opportunities with return aligned
@@ -87,10 +92,10 @@ The path to your dfs keying file
 ## **Evaluation Method**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
 * time interval is greater than 1 second
-* trading volume is greater than 1000
+* trading volume is greater than 1500
 * trading amount is greater than 15000 
 
-Currently we support three evluation methods
+Currently we support three evluation methods:
 
 ### *ret*
 Target on fixed number of opportunities and compare the value-weighted realized return on these opportunities. Take 240 opportunities as an example, we will try to pick top *x* percent opportunities so that the number of independent opportunities after filtering is around 240.
@@ -104,4 +109,35 @@ Compare both the number of opportunities and the value-weighted realized return 
 Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target.
 
 
+## **Intermediate Evaluation Statistics**
+We will save the intermediate evaluation statistics locally for the purpose of generating the evaluation report. The procedure is similar to the MapReduce system. You are also free to check these intermediate stats.
 
+### *daily stats*
+Statistics per **alpha** per **side** per **stock** per **day**. They include statistics for alphas in both the whole sample and the cutoff (eg. top240) part
+
+### *intraday stats*
+Statistics per **alpha** per **side** per **exchange** per **minute**
+
+
+## **Evaluation Report**
+Three example evaluation reports corresponding to the three evaluation methods are under the folder `./results`.
+
+### *summary statistics*
+Summary statistics of alphas and the actual return in the whole sample with a histogram plot.
+
+### *overall performance*
+* countOppo: average number of opportunities per day per stock
+* topPercent: average percentage of number of opportunities across the number of ticks
+* yHatHurdle: minimum yHat of the opportunities
+* yHatAvg: average yHat of the opportunities
+* vwActualRetAvg: notional weighted realized return of each opportunity
+* availNtl: average available notional of each opportunity 
+
+### *realized return* / *number of opportunities*
+-- Notional weighted realized return of each opportunity aggregated over each minute/day/month.
+
+-- Average number of opportunities per stock per day aggregated over each day/month.
+
+-- Average number of opportunities per stock per minute aggregated over the whole sample
+
+When `eval_focus` is set to *ret*, the report will only display the plots for realized return. If *oppo*, it will only display the plots for the number of opportunities. If *mixed*, plots for both realized return and the number of opportunities will be shown.
