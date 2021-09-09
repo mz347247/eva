@@ -1,8 +1,8 @@
 ## **Usage**
-1. Modify the configuration file. For example, `sta_input_example.yaml`.
+1. Modify the .yaml configuration file.
 2. Run from the command line
     
-    ``python eval_run.py sta_input_example.yaml``
+    ``python eval_run.py <configuration file path>``
 
 ## **Configuration Parameter**:
  
