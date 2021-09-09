@@ -3,7 +3,6 @@
 *.error
 *.ipynb
 *.png
-*.html
 **/logs
 *.sh
 **/__pycache__
