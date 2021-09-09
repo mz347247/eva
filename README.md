@@ -1,4 +1,8 @@
-
+## **Usage**
+1. Modify the configuration file. For example, `sta_input_example.yaml`.
+2. Run from the command line
+    
+    ``python eval_run.py sta_input_example.yaml``
 
 ## **Configuration Parameter**:
  
@@ -33,8 +37,7 @@ A list of data sources. Each source can contain multiple or just one alpha.
 
 > **alpha_list**: <br> The list of alpha names for buy / sell side
 >> **buy** : ***str or list*** <br> List of column names for buy-side alphas. Can also be a regular expression used to match the column names <br>
->> **sell** : ***str or list***
-List of column names for sell-side alphas. Can also be a regular expression used to match the column names
+>> **sell** : ***str or list*** <br> List of column names for sell-side alphas. Can also be a regular expression used to match the column names
 
 > **pool_name** : ***str*** <br> This applies only if data_source is DFS. The pool name where the sta is stored
 
@@ -57,7 +60,10 @@ The cutoff method. "top{x}" will target x opportunities while "top{x}p" will tar
 Whether to compute the return using the md data or read from the available actual returns on DFS
 
 ### **lookback_window** : ***int***
-The maximum looking back period for factor construction. The unit is second.
+The maximum looking back period for factor construction. The unit is second
 
 ### **save_path** : ***str***
-The directory to save the temporary evaluation statistics and the evaluation report.
+The directory to save the temporary evaluation statistics and the evaluation report
+
+### **log_path** : ***str***
+The directory to save the output and error files when running the evaluation program on HPC
