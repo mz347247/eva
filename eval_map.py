@@ -71,12 +71,12 @@ class StaAlphaEvalMap(StaAlphaEval):
                     else:
                         tmp_sta = pd.read_parquet(sta_info['data_path'].format(date=date))
 
-                tmp_buy_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_list']['buy'], col)]
-                tmp_sell_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_list']['sell'], col)]
+                tmp_buy_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_name']['buy'], col)]
+                tmp_sell_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_name']['sell'], col)]
                 if len(tmp_buy_cols) == 1:
                     sta_ls.append(sta_info['name'])
                 else:
-                    sta_ls += [sta_info['name'] + "_" + re.search(sta_info['alpha_list']['buy'], col).group('label') 
+                    sta_ls += [sta_info['name'] + "_" + re.search(sta_info['alpha_name']['buy'], col).group('label') 
                                + "_" + sta_type for col in tmp_buy_cols]
                 tmp_rename = {col : (sta_info['name'] + "_" + col) for col in tmp_buy_cols + tmp_sell_cols}
                 tmp_sta = tmp_sta.rename(columns=tmp_rename)
@@ -341,7 +341,7 @@ def main(sta_input):
             dates.append(int(date))
 
     # # dates = [20200102, 20200103, 20200106, 20200107]
-    print(len(dates))
+    # print(len(dates))
     sta_eval_run.generate_sta_cutoff(dates)
 
 def test():

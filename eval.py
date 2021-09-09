@@ -30,6 +30,7 @@ class StaAlphaEval():
 
         self.eval_path = os.path.join(dict_yaml['save_path'], self.universe, self.eval_alpha[-1]['name'])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
+        self.log_path = dict_yaml['log_path']
 
         if ((self.machine == 'personal-server') and (self.njobs > 70)) or \
            ((self.machine == 'HPC') and (self.njobs > 999)):

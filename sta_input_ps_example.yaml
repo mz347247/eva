@@ -10,7 +10,7 @@ eval_alpha:
     data_type: l2
     data_path: /sta_alpha_eq_cn/sta_90_1_1_1_l2/IC/sta{date}.parquet
     data_source: DFS
-    alpha_list:
+    alpha_name:
       buy: yHatBuy
       sell: yHatSell
     pool_name: sta_alpha_eq_cn
@@ -19,7 +19,7 @@ eval_alpha:
     data_type: mbd
     data_path: /sta_alpha_eq_cn/sta_90_1_1_1_mbd/IC/sta{date}.parquet
     data_source: DFS
-    alpha_list: 
+    alpha_name: 
       buy: yHatBuy
       sell: yHatSell
     pool_name: sta_alpha_eq_cn
@@ -30,3 +30,4 @@ target_cut: top240 # top240, top5p
 compute_ret: False
 lookback_window: 180
 save_path: /home/marlowe/Marlowe/sta_eval/sta_eval_v1
+log_path: /home/marlowe_zhong/eva/logs

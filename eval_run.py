@@ -1,10 +1,12 @@
 import os
+import sys
 from HPCutils import submit
 from eval import StaAlphaEval
 import eval_map
 import eval_reduce
 
-sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
+# sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
+sta_input = sys.argv[1]
 sta_eval_run = StaAlphaEval(sta_input)
 
 cwd = os.getcwd()
@@ -16,8 +18,8 @@ if sta_eval_run.machine == "HPC":
         mem = '4G'
     
     map_sh = f'''#!/bin/sh
-#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
-#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
+#SBATCH --output={sta_eval_run.log_path}/%A-%a-%x.out
+#SBATCH --error={sta_eval_run.log_path}/%A-%a-%x.error
 #SBATCH --mem-per-cpu={mem} --ntasks=1
 #SBATCH --time=30:00
 #SBATCH --cpus-per-task=4
@@ -27,8 +29,8 @@ srun -l python3 {cwd}/eval_map.py {sta_input}'''
     map_job_id = submit(map_sh, dryrun=False)
 
     reduce_sh = f'''#!/bin/sh
-#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
-#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
+#SBATCH --output={sta_eval_run.log_path}/%A-%a-%x.out
+#SBATCH --error={sta_eval_run.log_path}/%A-%a-%x.error
 #SBATCH --dependency=afterok:{map_job_id}
 #SBATCH --mem-per-cpu=4G --ntasks=1
 #SBATCH --time=5:00

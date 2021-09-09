@@ -25,7 +25,7 @@ Start date of the evaluation period
 End date of the evaluatin period
 
 ### **eval_alpha** :
-A list of data sources. Each source can contain multiple or just one alpha.
+A list of data sources. Each source can contain multiple alphas or just one alpha.
     
 > **name** : ***str*** <br> The name of this data source. Will be used to distinguish alphas from different data sources and also shown in the evaluation report.
 
@@ -35,9 +35,9 @@ A list of data sources. Each source can contain multiple or just one alpha.
 
 > **data_source** : ***{local, DFS}*** <br> Whether the data is saved locally or on DFS database
 
-> **alpha_list**: <br> The list of alpha names for buy / sell side
->> **buy** : ***str or list*** <br> List of column names for buy-side alphas. Can also be a regular expression used to match the column names <br>
->> **sell** : ***str or list*** <br> List of column names for sell-side alphas. Can also be a regular expression used to match the column names
+> **alpha_name**: <br> The list of alpha names for buy / sell side
+>> **buy** : ***str*** <br> The column name for the buy-side alpha. When there are multiple alphas in the current data source, use a regular expression to match the column names. Also specify a group named as "label", which will be used to name the different alphas in the evaluation report. For example, "yHatBuy(?P<label>[0-9]*)$" will use the number at the end of the colume name as the identifier for different alphas in the same data source. If not familiar with regular expression, you can check this [doc](https://docs.python.org/3/howto/regex.html) and expecially this [part](https://docs.python.org/3/howto/regex.html#non-capturing-and-named-groups) for named groups <br>
+>> **sell** : ***str*** <br> The column name for the sell-side alpha. Can also be a regular expression used to match the column names
 
 > **pool_name** : ***str*** <br> This applies only if data_source is DFS. The pool name where the sta is stored
 
