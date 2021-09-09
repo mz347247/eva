@@ -113,7 +113,7 @@ Under this method, we first filter all the ticks and find out the number of sepa
 We will save the intermediate evaluation statistics locally for the purpose of generating the evaluation report. The procedure is similar to the MapReduce system. You are also free to check these intermediate stats.
 
 ### *daily stats*
-Statistics per **alpha** per **side** per **stock** per **day**. They include statistics for alphas in both the whole sample and the cutoff (eg. top240) part
+Statistics per **alpha** per **side** per **stock** per **day**. They include statistics for alphas aggregated over the whole sample and the cutoff (eg. top240) part
 
 ### *intraday stats*
 Statistics per **alpha** per **side** per **exchange** per **minute**
