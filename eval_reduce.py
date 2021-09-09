@@ -734,9 +734,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
         
         return '\n'.join(reports)
 
-if __name__ == "__main__":
-    # sta_input = sys.argv[1]
-    sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
+def main(sta_input):
+    # sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
     sta_eval_run = StaAlphaEvalReduce(sta_input)
     
     sta_eval_run.alpha_eval()
+
+if __name__ == "__main__":
+    main(sys.argv[1])

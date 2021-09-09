@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import sys
 from collections import defaultdict
 import pandas as pd
@@ -327,16 +328,10 @@ def _get_eva_md(tstock, forward_period, backward_period):
               'cum_volume', 'cum_amount']
 
     return tstock[col_ls]
-            
 
-if __name__ == "__main__":
-    
-    sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
+
+def main(sta_input):
     sta_eval_run = StaAlphaEvalMap(sta_input)
-    # sta_eval_run.generate_daily_sta_cutoff(20200701)
-
-    # sta_input = sys.argv[1]
-    # sta_eval_run = StaAlphaEvalMap(sta_input)
 
     paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
     dates = []
@@ -349,13 +344,14 @@ if __name__ == "__main__":
     print(len(dates))
     sta_eval_run.generate_sta_cutoff(dates)
 
-    # partial_func = partial(_get_daily_sta_cutoff, sta_input=sta_input)
-    # with Pool(4) as p:
-    #     p.map(partial_func, dates)
+def test():
+    start_time = time.time()
+    sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
+    sta_eval_run = StaAlphaEvalMap(sta_input)
+    sta_eval_run.generate_daily_sta_cutoff(20200701)
+    end_time = time.time()
+    print(end_time - start_time)
 
-    # for date in tqdm(dates[2:]):
-    #     sta_eval_run.generate_daily_sta_cutoff(date)
-
-
-
-    
+if __name__ == "__main__":
+    main(sys.argv[1])
+    # test()

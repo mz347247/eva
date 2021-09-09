@@ -6,10 +6,6 @@ import numpy as np
 from utils import *
 from AShareReader import AShareReader
 from CephClient import CephClient
-from multiprocessing import Pool
-from functools import partial
-from tqdm import tqdm
-from HPCutils import get_job_list, submit
 import yaml
 
 class StaAlphaEval():
@@ -55,35 +51,3 @@ class StaAlphaEval():
         self.eval_alpha_dict = defaultdict(list)
         for alpha_info in self.eval_alpha:
             self.eval_alpha_dict[alpha_info['data_type']].append(alpha_info)
-
-
-if __name__ == "__main__":
-    sta_input = '/home/marlowe_zhong/eva/sta_input_HPC.yaml'
-    sta_eval_run = StaAlphaEval(sta_input)
-    if 'mbd' in sta_eval_run.eval_alpha_dict:
-        mem = '6G'
-    else:
-        mem = '4G'
-    cwd = os.getcwd()
-    
-    map_sh = f'''#!/bin/sh
-#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
-#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
-#SBATCH --mem-per-cpu={mem} --ntasks=1
-#SBATCH --time=30:00
-#SBATCH --cpus-per-task=4
-#SBATCH --array=0-{sta_eval_run.hpc_njobs}
-srun -l python3 {cwd}/eval_map.py {sta_input}'''
-
-    map_job_id = submit(map_sh, dryrun=False)
-
-    reduce_sh = f'''#!/bin/sh
-#SBATCH --output=/home/marlowe_zhong/eva/logs/%A-%a-%x.out
-#SBATCH --error=/home/marlowe_zhong/eva/logs/%A-%a-%x.error
-#SBATCH --dependency=afterok:{map_job_id}
-#SBATCH --mem-per-cpu=4G --ntasks=1
-#SBATCH --time=5:00
-#SBATCH --cpus-per-task=2
-srun -l python3 {cwd}/eval_reduce.py {sta_input}'''
-
-    reduce_sh_id = submit(reduce_sh, dryrun=False)
