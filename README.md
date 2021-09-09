@@ -20,6 +20,7 @@ Please update your dfs api to jdfs >= 1.1.0. You can set up the dfs following th
 ``python eval_run.py sta_input_ps_example.yaml``
 
 ## **Configuration Parameter**:
+An example configuration file is shown in `sta_input_ps_example.yaml`
  
 ### **machine** :  ***{personal-server, HPC}***
 The machine to run the evaluation program
