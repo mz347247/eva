@@ -83,11 +83,6 @@ The directory to save the temporary evaluation statistics and the evaluation rep
 ### **log_path** : ***str***
 The directory to save the output and error files when running the evaluation program on HPC
 
-### **dfs_config_path** : ***str***
-The path to your dfs config file
-
-### **dfs_keyring_path** : ***str***
-The path to your dfs keying file
 
 ## **Evaluation Method**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
