@@ -97,7 +97,7 @@ Currently we support three evluation methods:
 Target on fixed number of opportunities and compare the value-weighted realized return on these opportunities. Take 240 opportunities as an example, we will try to pick top *x* percent opportunities so that the number of independent opportunities after filtering is around 240.
 
 ### *oppo*
-Target on a baseline value-weighted realized return and compare the number of opportunities that achieved this return. The baseline return varis in different days and we set a minimal baseline return of 2bps. Similarly, we will try to pick top *x* percent opportunities so that the value-weighted realized return is closed to the target baseline each day.
+Target on a baseline value-weighted realized return and compare the number of opportunities that achieved this return. The baseline returns vary in different days and we set a minimal baseline return of 2bps. Similarly, we will try to pick top *x* percent opportunities so that the value-weighted realized return is closed to the target baseline each day.
 
 ### *mixed*
 Compare both the number of opportunities and the value-weighted realized return comprehensively. This will be the most frequently-used evaluation method. 
