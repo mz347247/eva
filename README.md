@@ -1,3 +1,8 @@
+# **Table of contents**
+1. [Usage](#usage)
+2. [Configuration Parameter](#configuration-parameter)
+3. [Evaluation Method](#evaluation-method)
+
 ## **Usage**
 1. Modify the .yaml configuration file
 2. Run from the command line
@@ -59,7 +64,7 @@ The evaluation method
 The column name for the target return to be used. The available actual returns on DFS are actualRet90s, actualRet150s, actualRet300s, actualRet600s. For other actual returns, pass a `target_return` with different horizon and set `compute_ret` to True.
 
 ### **target_cut** : ***str***
-The cutoff method. "top{x}" will target x opportunities while "top{x}p" will target the top x percent opportunities, where x is an integer. Only "top{x}p" is supported when `eval_focus` is set to "mixed"
+The cutoff method. "top{x}" will target x opportunities while "top{x}p" will target the top x percent opportunities, where x is an integer. "top{x}p" is supported when `eval_focus` is set to "mixed" while "top{x}" is supported when `eval_focus` is set to "ret"
 
 ### **compute_ret** : ***bool***
 Whether to compute the return using the md data or read from the available actual returns on DFS
@@ -78,3 +83,25 @@ The path to your dfs config file
 
 ### **dfs_keyring_path** : ***str***
 The path to your dfs keying file
+
+## **Evaluation Method**
+In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
+* time interval is greater than 1 second
+* trading volume is greater than 1000
+* trading amount is greater than 15000 
+
+Currently we support three evluation methods
+
+### *ret*
+Target on fixed number of opportunities and compare the value-weighted realized return on these opportunities. Take 240 opportunities as an example, we will try to pick top *x* percent opportunities so that the number of independent opportunities after filtering is around 240.
+
+### *oppo*
+Target on a baseline value-weighted realized return and compare the number of opportunities that achieved this return. The baseline return varis in different days and we set a minimal baseline return of 2bps. Similarly, we will try to pick top *x* percent opportunities so that the value-weighted realized return is closed to the target baseline each day.
+
+### *mixed*
+Compare both the number of opportunities and the value-weighted realized return comprehensively. This will be the most frequently-used evaluation method. 
+
+Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target.
+
+
+

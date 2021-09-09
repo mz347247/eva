@@ -36,18 +36,9 @@ class StaAlphaEval():
            ((self.machine == 'HPC') and (self.njobs > 999)):
            raise ValueError(f"Too many jobs {self.njobs} for the {self.machine}!")
         
-        if self.machine == "personal-server":
-            self.stock_reader = AShareReader(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                                             config_path = dict_yaml['dfs_config_path'],
-                                             KEYRING_LOC = dict_yaml['dfs_keyring_path'])
-            self.sta_reader = CephClient(dll_path = '{0}/ceph_client/ceph-client.so'.format(os.environ['HOME']), 
-                                         config_path = dict_yaml['dfs_config_path'],
-                                         KEYRING_LOC = dict_yaml['dfs_keyring_path'])
-        elif self.machine == "HPC":
-            self.stock_reader = AShareReader()
-            self.sta_reader = CephClient()
-        else:
-            raise ValueError(f"Invalid Input machine: {self.machine}")
+        # setup the dfs reader
+        self.stock_reader = AShareReader()
+        self.sta_reader = CephClient()
         
         self.eval_alpha_dict = defaultdict(list)
         for alpha_info in self.eval_alpha:

@@ -31,5 +31,3 @@ compute_ret: False
 lookback_window: 180
 save_path: /home/marlowe/Marlowe/sta_eval/sta_eval_v1
 log_path: /home/marlowe_zhong/eva/logs
-dfs_config_path: /home/marlowe/dfs/ceph.conf
-dfs_keyring_path: /home/marlowe/dfs/ceph.key.keyring
