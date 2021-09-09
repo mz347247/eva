@@ -6,6 +6,9 @@
 
 3. Check the evaluation report saved in the assigned `save_path` in the configuration file
 
+### Example
+``python eval_run.py sta_input_ps_example.yaml``
+
 ## **Configuration Parameter**:
  
 ### **machine** :  ***{personal-server, HPC}***
