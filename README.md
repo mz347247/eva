@@ -14,7 +14,7 @@
 3. Check the evaluation report saved in the assigned `save_path` in the configuration file
 
 ### Prerequisite
-Please update your dfs api to jdfs > 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/rz475743/ceph_client).
+Please update your dfs api to jdfs >= 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/rz475743/ceph_client).
 
 ### Example
 ``python eval_run.py sta_input_ps_example.yaml``
