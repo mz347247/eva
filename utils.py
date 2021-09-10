@@ -76,7 +76,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
             return None
 
         target_return = max(2e-4, target_return)
-        low = 50
+        low = 1
         high = len(df_valid)
 
         for _ in range(termination):
