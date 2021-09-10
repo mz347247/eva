@@ -6,15 +6,19 @@
 5. [Evaluation Report](#evaluation-report)
 
 ## **Usage**
-1. Modify the .yaml configuration file
-2. Run from the command line
+1. Clone into this repo! Use the following ssh otherwise it's slow. 
+    ``git clone git@github.com:study-int/STA_evaluation.git``
+2. Modify the .yaml configuration file
+3. Run from the command line
     
     ``python eval_run.py <configuration file path>``
 
-3. Check the evaluation report saved in the assigned `save_path` in the configuration file
+4. Check the evaluation report saved in the assigned `save_path` in the configuration file
 
 ### Prerequisite
-Please update your dfs api to jdfs >= 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/rz475743/ceph_client).
+* update your dfs api to jdfs >= 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/rz475743/ceph_client).
+* make sure you can use git via ssh keys
+
 
 ### Example
 ``python eval_run.py sta_input_ps_example.yaml``
