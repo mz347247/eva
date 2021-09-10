@@ -18,6 +18,7 @@ if sta_eval_run.machine == "HPC":
         mem = '4G'
     
     map_sh = f'''#!/bin/sh
+#SBATCH --job-name=eval_map
 #SBATCH --output={sta_eval_run.log_path}/%A-%a-%x.out
 #SBATCH --error={sta_eval_run.log_path}/%A-%a-%x.error
 #SBATCH --mem-per-cpu={mem} --ntasks=1
@@ -29,6 +30,7 @@ srun -l python3 {cwd}/eval_map.py {sta_input}'''
     map_job_id = submit(map_sh, dryrun=False)
 
     reduce_sh = f'''#!/bin/sh
+#SBATCH --job-name=eval_reduce
 #SBATCH --output={sta_eval_run.log_path}/%A-%a-%x.out
 #SBATCH --error={sta_eval_run.log_path}/%A-%a-%x.error
 #SBATCH --dependency=afterok:{map_job_id}
