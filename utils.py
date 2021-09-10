@@ -76,12 +76,12 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
             return None
 
         target_return = max(2e-4, target_return)
-        low = 1
+        low = 10
         high = len(df_valid)
 
         for _ in range(termination):
             number = low + (high - low) // 2
-            oppo_index = df_valid.index[df_valid[col] > df_valid[col].quantile(1 - number / len(df_valid))]
+            oppo_index = df_valid.index[df_valid[col] >= df_valid[col].quantile(1 - number / len(df_valid))]
             oppo = interval_filter(df_valid.loc[oppo_index], min_time, min_volume, min_amount, strict)
             vw_ret = weighted_average(oppo[ytrue_col], oppo['availNtl'])
             if abs(vw_ret - target_return) < tolerance * abs(target_return):
