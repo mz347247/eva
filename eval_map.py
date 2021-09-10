@@ -146,8 +146,8 @@ class StaAlphaEvalMap(StaAlphaEval):
 
             df_alpha['minute'] = df_alpha['datetime'].dt.hour * 60 + df_alpha['datetime'].dt.minute
             df_alpha['mins_since_open'] = np.where(df_alpha['minute'] <= 690, df_alpha['minute'] - 570, df_alpha['minute'] - 660)
-            df_alpha['buyAvailNtl'] = (df_alpha['ask1p'] * df_alpha['ask1q']).clip(upper=300000)
-            df_alpha['sellAvailNtl'] = (df_alpha['bid1p'] * df_alpha['bid1q']).clip(upper=300000)
+            df_alpha['buyAvailNtl'] = (df_alpha['ask1p'] * df_alpha['ask1q']).clip(upper=100000)
+            df_alpha['sellAvailNtl'] = (df_alpha['bid1p'] * df_alpha['bid1q']).clip(upper=100000)
 
             if self.eval_focus == "oppo":
                 df_target = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_l2/target_return/IC/top240/{date}.parquet',

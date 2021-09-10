@@ -7,6 +7,7 @@ import numpy as np
 from utils import *
 from AShareReader import AShareReader
 from CephClient import CephClient
+import multiprocessing
 from multiprocessing import Pool
 from functools import partial
 from tqdm import tqdm
@@ -22,6 +23,9 @@ import yaml
 
 perc = [.01, .05, .1, .25, .5, .75, .9, .95, .99]
 
+def read_pkl(path):
+    return pd.read_pickle(path)
+
 class StaAlphaEvalReduce(StaAlphaEval):
     def __init__(self, sta_input):
         super().__init__(sta_input)
@@ -33,8 +37,9 @@ class StaAlphaEvalReduce(StaAlphaEval):
         self.color = ['lightslategrey', 'steelblue', 'lightskyblue', 'paleturquoise', 'azure']
 
     def alpha_eval(self):
-        self.daily_stat = pd.concat([pd.read_pickle(path) for path in glob(f"{self.cutoff_path}/daily/*.pkl")], 
-                                    ignore_index=True)
+        with Pool(16) as p:
+            self.daily_stat = pd.concat(p.map(read_pkl, glob(f"{self.cutoff_path}/daily/*.pkl")), ignore_index=True)
+
         for col in ['yHatHurdle','yHatAvg', 'actualRetAvg', 'vwActualRetAvg']:
             self.daily_stat[col] = self.daily_stat[col] * 10000
         self.daily_stat['datetime'] = pd.to_datetime(self.daily_stat['date'].astype('str'))
@@ -52,8 +57,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
         self.daily_stat = self.daily_stat.merge(self.df_daily[['skey','date','price_group']], on = ['skey','date'], 
                                                 how = 'left', validate = 'many_to_one')
 
-        df_intraday = pd.concat([pd.read_pickle(path) for path in glob(f"{self.cutoff_path}/intraday/*.pkl")], 
-                                   ignore_index=True)
+        with Pool(16) as p:
+            df_intraday = pd.concat(p.map(read_pkl, glob(f"{self.cutoff_path}/intraday/*.pkl")), ignore_index=True)
 
         self.intraday_stat = df_intraday.groupby(['exchange','side','sta_cat','mins_since_open'], observed=True)[['countOppo']].mean()
         self.intraday_stat['countOppo'] = self.intraday_stat['countOppo'] / len(stock_list)
