@@ -36,7 +36,7 @@ srun -l python3 {cwd}/eval_map.py {sta_input}'''
 #SBATCH --dependency=afterok:{map_job_id}
 #SBATCH --mem-per-cpu=4G --ntasks=1
 #SBATCH --time=5:00
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=4
 srun -l python3 {cwd}/eval_reduce.py {sta_input}'''
 
     reduce_sh_id = submit(reduce_sh, dryrun=False)

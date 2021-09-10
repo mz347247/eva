@@ -146,8 +146,8 @@ class StaAlphaEvalMap(StaAlphaEval):
 
             df_alpha['minute'] = df_alpha['datetime'].dt.hour * 60 + df_alpha['datetime'].dt.minute
             df_alpha['mins_since_open'] = np.where(df_alpha['minute'] <= 690, df_alpha['minute'] - 570, df_alpha['minute'] - 660)
-            df_alpha['buyAvailNtl'] = df_alpha['ask1p'] * df_alpha['ask1q']
-            df_alpha['sellAvailNtl'] = df_alpha['bid1p'] * df_alpha['bid1q']
+            df_alpha['buyAvailNtl'] = (df_alpha['ask1p'] * df_alpha['ask1q']).clip(upper=300000)
+            df_alpha['sellAvailNtl'] = (df_alpha['bid1p'] * df_alpha['bid1q']).clip(upper=300000)
 
             if self.eval_focus == "oppo":
                 df_target = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_l2/target_return/IC/top240/{date}.parquet',
@@ -160,7 +160,7 @@ class StaAlphaEvalMap(StaAlphaEval):
                 if side == 'buy': 
                     df_side = df_alpha[basic_cols + buy_sta_cols + 
                                       ['buyAvailNtl', f"buyRet{self.target_horizon}s", f'nearLimit{self.lookback_window}s']].copy()
-                else: 
+                else:
                     df_side = df_alpha[basic_cols + sell_sta_cols + 
                                       ['sellAvailNtl', f"sellRet{self.target_horizon}s", f'nearLimit{self.lookback_window}s']].copy()
 
