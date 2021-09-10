@@ -1,0 +1,33 @@
+machine: HPC
+bench: IC  # IC or IF
+universe: IC  # IC or IF or custom
+njobs: 250
+start_date: 20200101
+end_date: 20201231 
+eval_alpha: 
+# example of dfs usage
+  - name: sta_90_1_1_1_l2
+    data_type: l2
+    data_path: /sta_alpha_eq_cn/sta_90_1_1_1_l2/IC/sta{date}.parquet
+    data_source: DFS
+    alpha_name:
+      buy: yHatBuy
+      sell: yHatSell
+    pool_name: sta_alpha_eq_cn
+    namespace: sta_90_1_1_1_l2
+  - name: sta_90_1_1_1_mbd
+    data_type: mbd
+    data_path: /sta_alpha_eq_cn/sta_90_1_1_1_mbd/IC/sta{date}.parquet
+    data_source: DFS
+    alpha_name: 
+      buy: yHatBuy
+      sell: yHatSell
+    pool_name: sta_alpha_eq_cn
+    namespace: sta_90_1_1_1_mbd
+eval_focus: ret # ret, oppo, mixed
+target_return: actualRet90s
+target_cut: top240 # top240, top5p
+compute_ret: False
+lookback_window: 180
+save_path: /home/marlowe_zhong/sta_eval/sta_eval_v4
+log_path: /home/marlowe_zhong/eva/logs
