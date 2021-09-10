@@ -112,7 +112,7 @@ We will save the intermediate evaluation statistics locally for the purpose of g
 Statistics per **alpha** per **side** per **stock** per **day**. They include statistics for alphas aggregated over the whole sample and the cutoff (eg. top240) part.
 
 ### *intraday stats*
-Statistics per **alpha** per **side** per **exchange** per **minute**.
+Statistics per **alpha** per **side** per **exchange** per **minute** aggregated over the whole sample.
 
 
 ## **Evaluation Report**
