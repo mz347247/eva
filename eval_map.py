@@ -263,7 +263,7 @@ class StaAlphaEvalMap(StaAlphaEval):
 
     def generate_sta_cutoff(self, dates):
         if self.machine=='personal-server':
-            with NestablePool(32) as p:
+            with NestablePool(self.njobs) as p:
                 p.map(self.generate_daily_sta_cutoff, dates)
         elif self.machine=='HPC':
             jobs = get_job_list(dates)

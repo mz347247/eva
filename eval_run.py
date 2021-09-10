@@ -23,7 +23,7 @@ if sta_eval_run.machine == "HPC":
 #SBATCH --mem-per-cpu={mem} --ntasks=1
 #SBATCH --time=30:00
 #SBATCH --cpus-per-task=4
-#SBATCH --array=0-{sta_eval_run.hpc_njobs}
+#SBATCH --array=0-{sta_eval_run.njobs}
 srun -l python3 {cwd}/eval_map.py {sta_input}'''
 
     map_job_id = submit(map_sh, dryrun=False)
