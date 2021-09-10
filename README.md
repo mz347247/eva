@@ -7,6 +7,7 @@
 
 ## **Usage**
 1. Clone into this repo! Use the following ssh otherwise it's slow. 
+
     ``git clone git@github.com:study-int/STA_evaluation.git``
 2. Modify the .yaml configuration file
 3. Run from the command line
