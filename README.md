@@ -127,7 +127,7 @@ Statistics per **alpha** per **side** per **exchange** per **minute** aggregated
 
 
 ## **Evaluation Report**
-Three example evaluation reports corresponding to the three evaluation methods are under the folder `./results`.
+Three example evaluation reports corresponding to the three evaluation methods are shown under the folder `./example_results`.
 
 ### *summary statistics*
 Summary statistics of alphas and the actual return in the whole sample with a histogram plot.
