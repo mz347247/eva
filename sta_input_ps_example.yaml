@@ -1,6 +1,6 @@
 machine: personal-server
 bench: IC  # IC or IF
-universe: custom  # IC or IF or custom
+universe: IC  # IC or IF or custom
 njobs: 30
 start_date: 20200701
 end_date: 20200731 
