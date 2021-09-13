@@ -18,7 +18,7 @@ def get_job_list(Ls):
 
     return jobLs
 
-def submit(batch: str, dryrun: bool):
+def submit(batch, dryrun):
     """Submit an batch file
     Parameters
     ----------

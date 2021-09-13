@@ -1,7 +1,7 @@
 # **Table of contents**
 1. [Usage](#usage)
-2. [Configuration Parameter](#configuration-parameter)
-3. [Evaluation Method](#evaluation-method)
+2. [Configuration Parameters](#configuration-parameters)
+3. [Evaluation Methods in Detail](#evaluation-methods-in-detail)
 4. [Intermediate Evaluation Statistics](#intermediate-evaluation-statistics)
 5. [Evaluation Report](#evaluation-report)
 
@@ -24,7 +24,7 @@
 ### Example
 ``python eval_run.py sta_input_ps_example.yaml``
 
-## **Configuration Parameter**:
+## **Configuration Parameters**:
 Two example configuration files is shown in `sta_input_ps_example.yaml` and ``sta_input_hpc_example.yaml`
  
 ### **machine** :  ***{personal-server, HPC}***
@@ -84,13 +84,13 @@ Whether to compute the return using the md data or read from the available actua
 The maximum looking back period for factor construction. The unit is second.
 
 ### **save_path** : ***str***
-The directory to save the temporary evaluation statistics and the evaluation report.
+The directory to save the temporary evaluation statistics and the evaluation report. It is not necessary to create this path.
 
 ### **log_path** : ***str***
 The directory to save the output and error files when running the evaluation program on HPC. **Please make sure that this path exists on your HPC**.
 
 
-## **Evaluation Method**
+## **Evaluation Methods in Detail**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
 * time interval is greater than 1 second
 * trading volume is greater than 1500
@@ -105,9 +105,15 @@ Target on fixed number of opportunities and compare the value-weighted realized 
 Target on a baseline value-weighted realized return and compare the number of opportunities that achieved this return. The baseline returns vary in different days and we set a minimal baseline return of 2bps. Similarly, we will try to pick top *x* percent opportunities so that the value-weighted realized return is closed to the target baseline each day.
 
 ### *mixed*
-Compare both the number of opportunities and the value-weighted realized return comprehensively. This will be the most frequently-used evaluation method. 
+Compare both the number of opportunities and the value-weighted realized return comprehensively. Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target. This is the reason why we **must set *"top{x}p"* instead of *"top{x}"* under this method**.
 
-Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target.
+
+### **Best practice suggestions**
+In general, *"mixed"* will be the most frequently-used evaluation method because it is similar to the production logic. 
+
+When comparing alphas generated from different datasets (for example l2 and mbd), you can first run the *"mixed"* evaluation to see how much improvement there is for the number of opportunities and the realized return. If you want to check the sole improvement on the realized return or the number of opportunities with the other factor controlled, you can use *"ret"* or *"oppo"* evaluation.
+
+When comparing alphas generated from the same dataset, you should still run *"mixed"* evaluation first. In this case you can still run *"oppo"* if you want to know how many more opportunities can the alphas take. However, *"ret"* is not recommended to use here because *"mixed"* is a better choice.
 
 
 ## **Intermediate Evaluation Statistics**
