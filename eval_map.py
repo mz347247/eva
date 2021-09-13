@@ -5,13 +5,11 @@ import sys
 from collections import defaultdict
 import pandas as pd
 import numpy as np
-from traitlets.traitlets import observe
 from utils import *
 from AShareReader import AShareReader
 from CephClient import CephClient
 from multiprocessing import Pool
 from functools import partial
-from tqdm import tqdm
 from HPCutils import get_job_list
 from eval import StaAlphaEval
 from glob import glob
