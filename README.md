@@ -16,7 +16,9 @@
 
 4. Check the evaluation report saved in the assigned `save_path` in the configuration file
 
-### Prerequisite
+### Requirements
+* python >= 3.6
+* pandas >= 0.25.0
 * update your dfs api to jdfs >= 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/rz475743/ceph_client).
 * make sure you can use git via ssh keys
 
