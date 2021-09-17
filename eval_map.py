@@ -68,6 +68,9 @@ class StaAlphaEvalMap(StaAlphaEval):
 
                 tmp_buy_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_name']['buy'], col)]
                 tmp_sell_cols = [col for col in tmp_sta.columns if re.match(sta_info['alpha_name']['sell'], col)]
+                
+                tmp_sta = tmp_sta[['skey', 'date', 'ordering'] + tmp_buy_cols + tmp_sell_cols]
+
                 if len(tmp_buy_cols) == 1:
                     sta_ls.append(sta_info['name'])
                 else:
