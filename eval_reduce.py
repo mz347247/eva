@@ -574,7 +574,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 if len(df_top) == 0:
                     continue
                 fig = px.line(df_top, x='datetime', y='yHatHurdle', color='sta_cat', height=600, width=self.html_width,
-                              labels={'datetime': '', 'yHatHurdle': 'yHatHurdle (bps)'},
+                              labels={'datetime': 'date', 'yHatHurdle': 'yHatHurdle (bps)'},
                               hover_data={'yHatHurdle': ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - yHatHurdle', x=0.5, yanchor='top',font_size=18),
