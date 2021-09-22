@@ -137,6 +137,12 @@ class StaAlphaEvalMap(StaAlphaEval):
             df_alpha['exchange'] = df_alpha['skey'].astype(str).str[:1]
             df_alpha['exchange'] = np.where(df_alpha['exchange'] == '1', 'SH', 'SZ')
 
+            if self.use_meta:
+                meta = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_md_{sta_type}/meta/{self.bench}/{date}.parquet', 
+                                                  'sta_md_eq_cn', f'sta_md_{sta_type}')
+                df_alpha = pd.merge(df_alpha, meta[['skey', 'date', 'nticks_filter']], how='left', on=['skey', 'date'],
+                                    validate='many_to_one')
+
             # TODO: modify this when we have SH mbd data
             # only compare SZ data if we compare mbd
             if "mbd" in self.eval_alpha_dict:
@@ -189,10 +195,16 @@ class StaAlphaEvalMap(StaAlphaEval):
                 else:
                     target_return_col = None
 
+                if self.use_meta:
+                    target_number_col = 'nticks_filter'
+                else:
+                    target_number_col = None
+
                 df_cutoff = (df_side.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                     .apply(lambda x: find_top_percent(x, col="sta",
                                                                       target_number=self._target_number, 
                                                                       target_ratio=self._target_ratio,
+                                                                      target_number_col=target_number_col,
                                                                       target_return_col=target_return_col,
                                                                       ytrue_col=self.target_ret,
                                                                       total_number=total_number,
@@ -261,7 +273,7 @@ class StaAlphaEvalMap(StaAlphaEval):
 
     def generate_sta_cutoff(self, dates):
         if self.machine=='personal-server':
-            with NestablePool(self.njobs) as p:
+            with Pool(self.njobs) as p:
                 p.map(self.generate_daily_sta_cutoff, dates)
         elif self.machine=='HPC':
             jobs = get_job_list(dates)
@@ -344,6 +356,7 @@ def main(sta_input):
 
 def test():
     start_time = time.time()
+    
     sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
     sta_eval_run = StaAlphaEvalMap(sta_input)
     sta_eval_run.generate_daily_sta_cutoff(20200701)

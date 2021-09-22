@@ -77,10 +77,10 @@ The evaluation method. Check this for more detailed description.
 The column name for the target return to be used. The available actual returns on DFS are actualRet90s, actualRet150s, actualRet300s, actualRet600s. For other actual returns, pass a `target_return` with different horizon and set `compute_ret` to True.
 
 ### **use_meta** : ***bool***
-Whether to use the data in the meta file. This applies only if `eval_focus` is set to "ret". If True, the target number of opportunities per stock per day recorded in the meta file will be used. If False, the cutoff method specified by `target_cut` will be used. The number in the meta file is closer to the production logic.
+Whether to use the data in the meta file. This applies only if `eval_focus` is set to "ret". If True, the target number of opportunities per stock per day will be calculated using the data recorded in the meta file. The number in the meta file is closer to the production logic.
 
 ### **target_cut** : ***str***
-The cutoff method. This only applies when `use_meta` is set to False. "top{x}" will target x opportunities while "top{x}p" will target the top x percent opportunities, where x is an integer. "top{x}p" is supported when `eval_focus` is set to "mixed" or "ret" while "top{x}" is only supported when `eval_focus` is set to "ret".
+The cutoff method. "top{x}" will target x opportunities while "top{x}p" will target the top x percent opportunities, where x is an integer. "top{x}p" is supported when `eval_focus` is set to "mixed" or "ret" while "top{x}" is only supported when `eval_focus` is set to "ret".
 
 ### **compute_ret** : ***bool***
 Whether to compute the return using the md data or read from the available actual returns on DFS.
@@ -119,7 +119,7 @@ Compare both the number of opportunities and the value-weighted realized return 
 
 When comparing alphas generated from different datasets (e.g. l2 and mbd) or different sampling methods (e.g. volume sampling and time sampling), you can first run the *"mixed"* evaluation to see how much improvement there is for the number of opportunities and the realized return. If you want to check the sole improvement on the realized return or the number of opportunities with the other factor controlled, you can use *"ret"* or *"oppo"* evaluation.
 
-When comparing alphas generated from the same dataset, you should run *"ret"* evaluation first with `use_meta` set to True. In this case you can still run *"oppo"* if you want to know how many more opportunities can the alphas take. 
+When comparing alphas generated from the same dataset, you should run *"ret"* evaluation first with `use_meta` set to True and `target_cut` set to top5p. In this case you can still run *"oppo"* if you want to know how many more opportunities can the alphas take. 
 
 
 ## **Intermediate Evaluation Statistics**

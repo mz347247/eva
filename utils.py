@@ -58,7 +58,7 @@ def interval_filter(df, min_time=None, min_volume=None, min_amount=None, strict=
     return pd.DataFrame(np.array(remaining))
 
 
-def find_top_percent(df, col, target_number, target_ratio, target_return_col, ytrue_col,
+def find_top_percent(df, col, target_number, target_ratio, target_number_col, target_return_col, ytrue_col,
                      total_number, filter_first, min_time=1, min_volume=1500, min_amount=15000, strict=True,
                      tolerance=0.05, termination=20):
     """
@@ -67,7 +67,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
     assert (target_ratio is not None) or (target_number is not None) or (target_return_col is not None)
 
     df_valid = df[df[col].notna() & df[ytrue_col].notna() & (~df['nearLimit'])]
-    if len(df_valid) == 0:
+    if len(df_valid) < 10:
         return None
 
     if target_return_col is not None:
@@ -98,6 +98,8 @@ def find_top_percent(df, col, target_number, target_ratio, target_return_col, yt
             if filter_first:
                 df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount, strict)
                 target_number = len(df_pass_filter) * target_ratio
+            elif target_return_col is not None:
+                target_number = df_valid[target_number_col].iloc[0] * target_ratio
             else:
                 target_number = int(total_number * target_ratio)
 

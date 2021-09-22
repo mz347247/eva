@@ -23,10 +23,12 @@ class StaAlphaEval():
         self.end_date = str(dict_yaml['end_date'])
         self.eval_alpha = dict_yaml['eval_alpha']
         self.target_ret = dict_yaml['target_return']
+        self.use_meta = dict_yaml['use_meta']
         self.target_cut = dict_yaml['target_cut']
         self.eval_focus = dict_yaml['eval_focus']
         self.lookback_window = dict_yaml['lookback_window']
         self.compute_ret = dict_yaml['compute_ret']    
+        self.delete_stats = dict_yaml['delete_stats']
 
         self.eval_path = os.path.join(dict_yaml['save_path'], self.universe, self.eval_alpha[-1]['name'])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
