@@ -494,7 +494,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_side = df_side.reset_index()
         fig = px.bar(df_side, x='side', y='vwActualRetAvg', color='sta_cat', barmode='group', height=500, width=self.html_width,
                         labels={'vwActualRetAvg': 'return (bps)'},
-                        hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                        hover_data={'vwActualRetAvg': ':.2f'})
         fig.update_layout(font_family='sans-serif',
                           title=dict(text='all side - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                           legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -506,7 +506,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_side = df_side.reset_index()
         fig = px.bar(df_side, x='side', y='countOppo', color='sta_cat', barmode='group', height=500, width=self.html_width,
                         labels={'countOppo': 'num of oppo'},
-                        hover_data={'sta_cat':False, 'countOppo': ':.2f'})
+                        hover_data={'countOppo': ':.2f'})
         fig.update_layout(font_family='sans-serif',
                           title=dict(text='all side - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                           legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -532,7 +532,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
             df_side.drop(columns = ['price_start'], inplace = True)
             fig = px.bar(df_side, x='price_group', y='vwActualRetAvg', color='sta_cat', barmode='group', height=500, width=self.html_width,
                          labels={'price_group': 'price group', 'vwActualRetAvg': 'return (bps)'},
-                         hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                         hover_data={'vwActualRetAvg': ':.2f'})
             fig.update_layout(font_family='sans-serif',
                               title=dict(text=side+' side - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                               legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -557,7 +557,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
             df_side.drop(columns = ['price_start'], inplace = True)
             fig = px.bar(df_side, x='price_group', y='countOppo', color='sta_cat', barmode='group', height=500, width=self.html_width,
                          labels={'price_group': 'price group', 'countOppo': 'num of oppo'},
-                         hover_data={'sta_cat':False, 'countOppo': ':.2f'})
+                         hover_data={'countOppo': ':.2f'})
             fig.update_layout(font_family='sans-serif',
                               title=dict(text=side+' side - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                               legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -575,7 +575,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.line(df_top, x='datetime', y='yHatHurdle', color='sta_cat', height=600, width=self.html_width,
                               labels={'datetime': '', 'yHatHurdle': 'yHatHurdle (bps)'},
-                              hover_data={'sta_cat':False, 'yHatHurdle': ':.2f'})
+                              hover_data={'yHatHurdle': ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - yHatHurdle', x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -601,7 +601,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.bar(df_hist, x=stats_horizon, y='vwActualRetAvg', color='sta_cat', barmode='group', 
                              height=500, width=self.html_width,labels={'vwActualRetAvg': 'return (bps)'},
-                             hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                             hover_data={'vwActualRetAvg': ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -624,7 +624,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.bar(df_hist, x=stats_horizon, y='countOppo', color='sta_cat', barmode='group', 
                              height=500, width=self.html_width,labels={'countOppo': 'num of oppo'},
-                             hover_data={'sta_cat':False, 'countOppo': ':.2f'})
+                             hover_data={'countOppo': ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -646,7 +646,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 
                 fig = px.line(df_hist, x='datetime', y='vwActualRetAvg', color='sta_cat', height=600, width=self.html_width,
                               labels={'datetime': 'date', 'vwActualRetAvg': 'return (bps)'},
-                              hover_data={'sta_cat':False, 'vwActualRetAvg': ':.2f'})
+                              hover_data={'vwActualRetAvg': ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -670,7 +670,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 
                 fig = px.line(df_hist, x='datetime', y='countOppo', color='sta_cat', height=600, width=self.html_width,
                               labels={'datetime': 'date', 'countOppo': 'num of oppo'},
-                              hover_data={'sta_cat':False, 'countOppo': ':.2f'})
+                              hover_data={'countOppo': ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+'countOppo', x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -694,7 +694,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=600, width=self.html_width,
                              labels={'mins_since_open': '', value: ylabel},
-                             hover_data={'sta_cat':False, 'mins_since_open':False, value: ':.2f'})
+                             hover_data={'mins_since_open':False, value: ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_cut, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
@@ -720,7 +720,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                     continue
                 fig = px.line(df_intra, x='mins_since_open', y=value, color='sta_cat', height=600, width=self.html_width,
                               labels={'mins_since_open': '', value: ylabel},
-                              hover_data={'sta_cat':False, 'mins_since_open':False, value: ':.2f'})
+                              hover_data={'mins_since_open':False, value: ':.2f'})
                 fig.update_layout(font_family='sans-serif',
                                   title=dict(text=side+' side - '+ex+' - '+self.target_cut, x=0.5, yanchor='top',font_size=18),
                                   legend=dict(title_text="", bgcolor="LightSteelBlue"))
