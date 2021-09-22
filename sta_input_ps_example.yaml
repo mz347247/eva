@@ -26,7 +26,7 @@ eval_alpha:
     namespace: sta_90_1_1_1_mbd
 eval_focus: mixed # ret, oppo, mixed
 target_return: actualRet90s
-target_cut: top240 # top240, top5p
+target_cut: top150 # top240, top5p
 compute_ret: False
 lookback_window: 180
 save_path: /home/marlowe/Marlowe/sta_eval/sta_eval_v1

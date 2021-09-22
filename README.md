@@ -100,14 +100,14 @@ In the current evaluation system, we filter out independent opportunities so tha
 
 Currently we support three evluation methods:
 
+### *mixed*
+Compare both the number of opportunities and the value-weighted realized return comprehensively. Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target. This is the reason why we **must set *"top{x}p"* instead of *"top{x}"* under this method**.
+
 ### *ret*
 Target on fixed number of opportunities and compare the value-weighted realized return on these opportunities. Take 240 opportunities as an example, we will try to pick top *x* percent opportunities so that the number of independent opportunities after filtering is around 240.
 
 ### *oppo*
 Target on a baseline value-weighted realized return and compare the number of opportunities that achieved this return. The baseline returns vary in different days and we set a minimal baseline return of 2bps. Similarly, we will try to pick top *x* percent opportunities so that the value-weighted realized return is closed to the target baseline each day.
-
-### *mixed*
-Compare both the number of opportunities and the value-weighted realized return comprehensively. Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target. This is the reason why we **must set *"top{x}p"* instead of *"top{x}"* under this method**.
 
 
 ### **Best practice suggestions**
