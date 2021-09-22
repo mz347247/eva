@@ -32,4 +32,4 @@ compute_ret: False
 lookback_window: 180
 save_path: /home/marlowe_zhong/sta_eval/sta_eval_v4
 delete_stats: True
-log_path: /home/marlowe_zhong/eva/logs
+log_path: /home/marlowe_zhong/STA_evaluation/logs
