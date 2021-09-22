@@ -739,5 +739,8 @@ def main(sta_input):
     
     sta_eval_run.alpha_eval()
 
+    if sta_eval_run.delete_stats:
+        os.rmdir(sta_eval_run.cutoff_path)
+
 if __name__ == "__main__":
     main(sys.argv[1])
