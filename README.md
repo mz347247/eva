@@ -68,16 +68,19 @@ A list of data sources. Each source can contain multiple alphas or just one alph
 
 ### **eval_focus** : ***{ret, oppo, mixed}***
 The evaluation method. Check this for more detailed description.
-    
-- "ret" : compare the return with fixed number of opportunities to look at (for example 240)
+
+- "ret" : compare the return with fixed number of opportunities or fixed percentage of opportunities to look at
 - "oppo" : compare the number of opportunities with return aligned
 - "mixed" : compare the improvement in both number of opportunities and return with a comprehensive method mimicking the production logic
 
 ### **target_return** : ***str***
 The column name for the target return to be used. The available actual returns on DFS are actualRet90s, actualRet150s, actualRet300s, actualRet600s. For other actual returns, pass a `target_return` with different horizon and set `compute_ret` to True.
 
+### **use_meta** : ***bool***
+Whether to use the data in the meta file. This applies only if `eval_focus` is set to "ret". If True, the target number of opportunities per stock per day recorded in the meta file will be used. If False, the cutoff method specified by `target_cut` will be used. The number in the meta file is closer to the production logic.
+
 ### **target_cut** : ***str***
-The cutoff method. "top{x}" will target x opportunities while "top{x}p" will target the top x percent opportunities, where x is an integer. "top{x}p" is supported when `eval_focus` is set to "mixed" while "top{x}" is supported when `eval_focus` is set to "ret".
+The cutoff method. This only applies when `use_meta` is set to False. "top{x}" will target x opportunities while "top{x}p" will target the top x percent opportunities, where x is an integer. "top{x}p" is supported when `eval_focus` is set to "mixed" or "ret" while "top{x}" is only supported when `eval_focus` is set to "ret".
 
 ### **compute_ret** : ***bool***
 Whether to compute the return using the md data or read from the available actual returns on DFS.
@@ -87,6 +90,9 @@ The maximum looking back period for factor construction. The unit is second.
 
 ### **save_path** : ***str***
 The directory to save the temporary evaluation statistics and the evaluation report. It is not necessary to create this path.
+
+### **delete_stats** : ***bool***
+Whether to delete the temporary evaluation statistics after generation of the evaluation report.
 
 ### **log_path** : ***str***
 The directory to save the output and error files when running the evaluation program on HPC. **Please make sure that this path exists on your HPC**.
@@ -98,31 +104,29 @@ In the current evaluation system, we filter out independent opportunities so tha
 * trading volume is greater than 1500
 * trading amount is greater than 15000 
 
-Currently we support three evluation methods:
-
-### *mixed*
-Compare both the number of opportunities and the value-weighted realized return comprehensively. Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. It means that alpha generated using the same md, for example l2, will have close number of target opportunities. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target. This is the reason why we **must set *"top{x}p"* instead of *"top{x}"* under this method**.
+Currently we support three evaluation methods:
 
 ### *ret*
-Target on fixed number of opportunities and compare the value-weighted realized return on these opportunities. Take 240 opportunities as an example, we will try to pick top *x* percent opportunities so that the number of independent opportunities after filtering is around 240.
+Target on fixed number of opportunities and compare the value-weighted realized return on these opportunities. Take 150 opportunities as an example, we will try to pick top *x* percent opportunities so that the number of independent opportunities after filtering is around 150.
 
 ### *oppo*
 Target on a baseline value-weighted realized return and compare the number of opportunities that achieved this return. The baseline returns vary in different days and we set a minimal baseline return of 2bps. Similarly, we will try to pick top *x* percent opportunities so that the value-weighted realized return is closed to the target baseline each day.
 
+### *mixed*
+Compare both the number of opportunities and the value-weighted realized return comprehensively. Under this method, we first filter all the ticks and find out the number of separate ticks. Second, we use, say, 5 percent of the number of separate ticks as the target number of opportunities for this alpha. Third, we try to pick top *x* percent opportunities from the original (**not filtered**) ticks so that the number of independent opportunities is close to the target. This is the reason why we **must set *"top{x}p"* instead of *"top{x}"* under this method**. This method should be used when the alphas are generated from different datasets or using different sample methods.
 
 ### **Best practice suggestions**
-In general, *"mixed"* will be the most frequently-used evaluation method because it is similar to the production logic. 
 
-When comparing alphas generated from different datasets (for example l2 and mbd), you can first run the *"mixed"* evaluation to see how much improvement there is for the number of opportunities and the realized return. If you want to check the sole improvement on the realized return or the number of opportunities with the other factor controlled, you can use *"ret"* or *"oppo"* evaluation.
+When comparing alphas generated from different datasets (e.g. l2 and mbd) or different sampling methods (e.g. volume sampling and time sampling), you can first run the *"mixed"* evaluation to see how much improvement there is for the number of opportunities and the realized return. If you want to check the sole improvement on the realized return or the number of opportunities with the other factor controlled, you can use *"ret"* or *"oppo"* evaluation.
 
-When comparing alphas generated from the same dataset, you should still run *"mixed"* evaluation first. In this case you can still run *"oppo"* if you want to know how many more opportunities can the alphas take. However, *"ret"* is not recommended to use here because *"mixed"* is a better choice.
+When comparing alphas generated from the same dataset, you should run *"ret"* evaluation first with `use_meta` set to True. In this case you can still run *"oppo"* if you want to know how many more opportunities can the alphas take. 
 
 
 ## **Intermediate Evaluation Statistics**
 We will save the intermediate evaluation statistics locally for the purpose of generating the evaluation report. The procedure is similar to the MapReduce system. You are also free to check these intermediate stats.
 
 ### *daily stats*
-Statistics per **alpha** per **side** per **stock** per **day**. They include statistics for alphas aggregated over the whole sample and the cutoff (eg. top240) part.
+Statistics per **alpha** per **side** per **stock** per **day**. They include statistics for alphas aggregated over the whole sample and the cutoff part.
 
 ### *intraday stats*
 Statistics per **alpha** per **side** per **exchange** per **minute** aggregated over the whole sample.

@@ -45,3 +45,7 @@ else:
     eval_map.main(sta_input)
 
     eval_reduce.main(sta_input)
+
+if sta_eval_run.delete_stats:
+    os.rmdir(sta_eval_run.cutoff_path)
+
