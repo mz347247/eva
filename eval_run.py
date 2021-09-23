@@ -13,7 +13,7 @@ cwd = os.getcwd()
 
 if sta_eval_run.machine == "HPC":
     if 'mbd' in sta_eval_run.eval_alpha_dict:
-        mem = '16G'
+        mem = '24G'
     else:
         mem = '4G'
     
