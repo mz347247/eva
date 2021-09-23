@@ -103,6 +103,9 @@ Whether to save the cutoff summary sheet. If True, it will be saved at the same 
 ### **display** : ***None or list***
 The plots or tables to display in the evaluation report. If None, will display the default plots and tables. If a list, will only display those parts assigned in the list.
 
+### **file_name** : ***None or str***
+If not None, will use this as the name for the evaluation report. Otherwise use the default file name.
+
 ## **Evaluation Methods in Detail**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
 * time interval is greater than 1 second
@@ -122,9 +125,9 @@ Compare both the number of opportunities and the value-weighted realized return 
 
 ### **Best practice suggestions**
 
-When comparing alphas generated from different datasets (e.g. l2 and mbd) or different sampling methods (e.g. volume sampling and time sampling), you can first run the *"mixed"* evaluation to see how much improvement there is for the number of opportunities and the realized return. If you want to check the sole improvement on the realized return or the number of opportunities with the other factor controlled, you can use *"ret"* or *"oppo"* evaluation.
-
 When comparing alphas generated from the same dataset, you should run *"ret"* evaluation first with `use_meta` set to True and `target_cut` set to top5p (or top{x}p as you wish). In this case you can still run *"oppo"* if you want to know how many more opportunities can the alphas take. 
+
+When comparing alphas generated from different datasets (e.g. l2 and mbd) or different sampling methods (e.g. volume sampling and time sampling), you can first run the *"mixed"* evaluation to see how much improvement there is for the number of opportunities and the realized return. If you want to check the sole improvement on the realized return or the number of opportunities with the other factor controlled, you can use *"ret"* or *"oppo"* evaluation.
 
 
 ## **Intermediate Evaluation Statistics**
