@@ -177,3 +177,6 @@ Summary statistics of alphas and the actual return in the whole sample with a hi
 -- Average number of opportunities per stock per minute aggregated over the whole sample
 
 When `eval_focus` is set to *ret*, the report will only display the plots for realized return. If *oppo*, it will only display the plots for the number of opportunities. If *mixed*, plots for both realized return and the number of opportunities will be shown.
+
+### *alpha decay*
+A plot of realized return against the time elapsed after each opportunity.
