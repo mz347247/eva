@@ -97,6 +97,11 @@ Whether to delete the temporary evaluation statistics after generation of the ev
 ### **log_path** : ***str***
 The directory to save the output and error files when running the evaluation program on HPC. **Please make sure that this path exists on your HPC**.
 
+### **save_summary** : ***bool***
+Whether to save the cutoff summary sheet. If True, it will be saved at the same directory as the evaluation report.
+
+### **display** : ***None or list***
+The plots or tables to display in the evaluation report. If None, will display the default plots and tables. If a list, will only display those parts assigned in the list.
 
 ## **Evaluation Methods in Detail**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
