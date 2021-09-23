@@ -116,13 +116,13 @@ class StaAlphaEvalMap(StaAlphaEval):
                 df_md = _get_eva_md(df_md, self.target_horizon, self.lookback_window)
             else:
                 df_ret = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_{sta_type}/actual_return/{self.bench}/{date}.parquet', 
-                                                    'sta_md_eq_cn', f'sta_ret_{sta_type}')
+                                                    'sta_md_eq_cn', f'sta_ret_{sta_type}')[['skey', 'date', 'ordering', 
+                                                                                          f'buyRet{self.target_horizon}s', f'sellRet{self.target_horizon}s']]
                 df_md = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_md_{sta_type}/{self.bench}/{date}.parquet', 
                                                     'sta_md_eq_cn', f'sta_md_{sta_type}')
                 df_md = pd.merge(df_md[['skey', 'date', 'time','datetime', 'ordering', 
                                         'ask1p', 'ask1q', 'bid1p', 'bid1q',
-                                        'cum_volume', 'cum_amount', f'nearLimit{self.lookback_window}s']],
-                                 df_ret[['skey', 'date', 'ordering', f'buyRet{self.target_horizon}s', f'sellRet{self.target_horizon}s']],
+                                        'cum_volume', 'cum_amount', f'nearLimit{self.lookback_window}s']], df_ret,
                                  on = ['skey','date','ordering'], how = 'left', validate = 'one_to_one')
                 del df_ret
 
@@ -159,6 +159,8 @@ class StaAlphaEvalMap(StaAlphaEval):
 
             basic_cols = ['skey','date','time','exchange','mins_since_open',
                           'cum_volume','cum_amount']
+            if self.use_meta:
+                basic_cols.append('nticks_filter')
             
             for side in ['buy', 'sell']:
                 if side == 'buy': 

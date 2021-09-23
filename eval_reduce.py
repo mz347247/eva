@@ -12,6 +12,7 @@ import plotly.io as io
 import plotly.express as px
 import plotly.graph_objects as go
 from eval import StaAlphaEval
+import shutil
 
 import yaml
 
@@ -71,23 +72,32 @@ class StaAlphaEvalReduce(StaAlphaEval):
         with open(os.path.join(self.eval_path, report_name), 'w') as f:
             f.write('''<html>\n<head><meta charset="utf-8" /></head>\n<body>\n''')
 
+            display_all = self.display is None
             # sta all summary
-            table1 = self.sta_all_summary_html()
-            f.write(table1 + '\n')
+            if ('all_summary' in self.display) or display_all:
+                table1 = self.sta_all_summary_html()
+                f.write(table1 + '\n')
 
             # distribution
-            f.write("<h2>distribution of yHat and yTrue</h2>" + "\n")
-            figs = self.sta_all_dist_html()
-            f.write(figs + '\n')
+            if ('all_hist' in self.display) or display_all:
+                f.write("<h2>distribution of yHat and yTrue</h2>" + "\n")
+                figs = self.sta_all_dist_html()
+                f.write(figs + '\n')
 
             # drop actualRet
             self.daily_stat = self.daily_stat[~self.daily_stat['sta_cat'].str.startswith(self.target_ret)].copy()
 
+            # sta cutoff summary compact
+            if ('cutoff_summary_compact' in self.display) or display_all:
+                table2 = self.sta_cutoff_summary_short_html()
+                f.write(table2 + '\n')
+
             # sta cutoff summary
-            table2 = self.sta_cutoff_summary_html()
-            f.write(table2 + '\n')
+            if ('cutoff_summary' in self.display) or display_all:
+                table3 = self.sta_cutoff_summary_html()
+                f.write(table3 + '\n')
             
-            if self.eval_focus in ['ret', 'mixed']:
+            if (self.eval_focus in ['ret', 'mixed']) or ('group_performance' in self.display):
                 # performance by side
                 f.write("<h2>performance for different side</h2>" + "\n")
                 figs = self.performance_by_side_html()
@@ -96,7 +106,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 f.write("<h2>performance for different price group</h2>" + "\n")
                 figs = self.performance_by_price_group_html()
                 f.write(figs + '\n')
-            if self.eval_focus in ['oppo', 'mixed']:
+            if (self.eval_focus in ['oppo', 'mixed']) or ('group_oppo' in self.display):
                 # opportunities by side
                 f.write("<h2>opportunities for different side</h2>" + "\n")
                 figs = self.opportunities_by_side_html()
@@ -107,41 +117,44 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 f.write(figs + '\n')
 
             # daily yHatAvg
-            f.write(f"<h2>daily average yHatHurdle</h2>" + "\n")
-            figs = self.daily_yHatHurdle_html()
-            f.write(figs + '\n')
+            if ('daily_hurdle' in self.display) or display_all:
+                f.write(f"<h2>daily average yHatHurdle</h2>" + "\n")
+                figs = self.daily_yHatHurdle_html()
+                f.write(figs + '\n')
 
-            if self.eval_focus in ['ret', 'mixed']:
+            if (self.eval_focus in ['ret', 'mixed']) or ('monthly_return' in self.display):
                 # monthly realized return
                 f.write("<h2>monthly realized return</h2>" + "\n")
                 figs = self.monthly_realized_return_html()
                 f.write(figs + '\n')
-            if self.eval_focus in ['oppo', 'mixed']:
+            if (self.eval_focus in ['oppo', 'mixed']) or ('monthly_oppo' in self.display):
                 # monthly realized return
                 f.write("<h2>monthly number of opportunities</h2>" + "\n")
                 figs = self.monthly_opportunities_html()
                 f.write(figs + '\n')
 
-            if self.eval_focus in ['ret', 'mixed']:
+            if (self.eval_focus in ['ret', 'mixed']) or ('daily_return' in self.display):
                 # daily realized return
                 f.write("<h2>daily realized return</h2>" + "\n")
                 figs = self.daily_realized_return_html()
                 f.write(figs + '\n')
-            if self.eval_focus in ['oppo', 'mixed']:
+            if (self.eval_focus in ['oppo', 'mixed']) or ('daily_oppo' in self.display):
                 # daily realized return
                 f.write("<h2>daily number of opportunities</h2>" + "\n")
                 figs = self.daily_opportunities_html()
                 f.write(figs + '\n')
 
-            # daily realized return
-            f.write("<h2>intraday average return across minutes since open</h2>" + "\n")
-            figs = self.intraday_realized_return_html()
-            f.write(figs + '\n')
+            # intraday realized return
+            if ('intraday_return' in self.display) or display_all:
+                f.write("<h2>intraday average return across minutes since open</h2>" + "\n")
+                figs = self.intraday_realized_return_html()
+                f.write(figs + '\n')
 
             # intraday number of opportunities
-            f.write("<h2>intraday average oppo. across minutes since open</h2>" + "\n")
-            figs = self.intraday_opportunities_html()
-            f.write(figs + '\n')
+            if ('intraday_oppo' in self.display) or display_all:
+                f.write("<h2>intraday average oppo. across minutes since open</h2>" + "\n")
+                figs = self.intraday_opportunities_html()
+                f.write(figs + '\n')
             
             f.write('''\n</body>\n</html>''')
 
@@ -442,6 +455,50 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
         return self.to_html(fig)
 
+    def sta_cutoff_summary_short_html(self):
+        df_total = self.daily_stat.groupby(['sta_cat'], observed=True)[['countOppo', 'topPercent']].mean()
+        
+        for col in ['yHatHurdle', 'yHatAvg', 'vwActualRetAvg']:
+            df_total[col] = self.daily_stat.groupby(['sta_cat'], 
+                                                    observed=True).apply(lambda x: weighted_average(x[col], weights=x['availNtlSum']))
+        df_total['availNtl'] = self.daily_stat.groupby(['sta_cat'], 
+                                                       observed=True).apply(lambda x: weighted_average(x['availNtlAvg'], weights=x['countOppo']))
+
+        df_total.reset_index(inplace=True)
+
+        if self.eval_focus == 'oppo':
+            underlying_ls = ['countOppo']
+        elif (self.eval_focus == 'ret') and (not self.use_meta):
+            underlying_ls = ['vwActualRetAvg']
+        else:
+            underlying_ls = ['countOppo', 'vwActualRetAvg']
+        for underlying in underlying_ls:
+            df_total['base'] = df_total.loc[df_total['sta_cat'] == df_total['sta_cat'].min(), underlying].item()
+            
+            df_total[f'{underlying}<br>improvement(%)'] = (df_total[underlying]/df_total['base'] - 1) * 100
+
+        df_total['topPercent'] = df_total['topPercent'] * 100
+        df_total.rename(columns={'topPercent':'topPercent(%)'}, inplace=True)
+        
+        for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','availNtl', 'countOppo', 'topPercent(%)'] + \
+                   [f'{underlying}<br>improvement(%)' for underlying in underlying_ls]:
+            df_total[col] = df_total[col].map(lambda x: "{:.2f}".format(x))
+
+        # add bold font
+        for underlying in underlying_ls:
+            df_total[f'{underlying}<br>improvement(%)'] = "<b>" + df_total[f'{underlying}<br>improvement(%)'].astype(str) + "</b>"
+
+        df_total = df_total.drop("base", axis=1)
+
+        fig = go.Figure(data=[go.Table(header=dict(values=[f'<b>{col}</b>' for col in df_total.columns],align=['center', 'center'],font_size=14,height=30),
+                      cells=dict(values=[df_total[col] for col in df_total.columns], align=['center', 'center'],
+                                font_size=14,height=30))])
+        fig.update_layout(font_family='sans-serif', title_text='overall performance outlook', title_x=0.5, title_yanchor='top', 
+                          width=self.html_width, height=(1+len(df_total)) * 30 + 120, autosize=False, 
+                          margin=dict(t=40, b=10, l=10, r=10))
+
+        return io.to_html(fig, full_html=False, include_plotlyjs='cdn')
+
     def sta_cutoff_summary_html(self):
         df_total = self.daily_stat.groupby(['sta_cat', 'exchange', 'side'], observed=True)[['countOppo', 'topPercent']].mean()
         
@@ -468,6 +525,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
         df_total['topPercent'] = df_total['topPercent'] * 100
         df_total.rename(columns={'topPercent':'topPercent(%)'}, inplace=True)
+
+        if self.save_summary:
+            summary_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
+                                     self.start_date, self.end_date]) + '.csv'
+            df_total.to_csv(os.path.join(self.eval_path, summary_name), index=None)
         
         for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','availNtl', 'countOppo', 'topPercent(%)'] + \
                    [f'{underlying}<br>improvement(%)' for underlying in underlying_ls]:
@@ -740,7 +802,7 @@ def main(sta_input):
     sta_eval_run.alpha_eval()
 
     if sta_eval_run.delete_stats:
-        os.rmdir(sta_eval_run.cutoff_path)
+        shutil.rmtree(sta_eval_run.cutoff_path)
 
 if __name__ == "__main__":
     main(sys.argv[1])

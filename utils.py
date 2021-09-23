@@ -98,7 +98,7 @@ def find_top_percent(df, col, target_number, target_ratio, target_number_col, ta
             if filter_first:
                 df_pass_filter = interval_filter(df_valid, min_time, min_volume, min_amount, strict)
                 target_number = len(df_pass_filter) * target_ratio
-            elif target_return_col is not None:
+            elif target_number_col is not None:
                 target_number = df_valid[target_number_col].iloc[0] * target_ratio
             else:
                 target_number = int(total_number * target_ratio)

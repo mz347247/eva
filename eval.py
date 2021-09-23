@@ -29,6 +29,8 @@ class StaAlphaEval():
         self.lookback_window = dict_yaml['lookback_window']
         self.compute_ret = dict_yaml['compute_ret']    
         self.delete_stats = dict_yaml['delete_stats']
+        self.save_summary = dict_yaml['save_summary']
+        self.display = dict_yaml['display']
 
         self.eval_path = os.path.join(dict_yaml['save_path'], self.universe, self.eval_alpha[-1]['name'])
         self.cutoff_path = os.path.join(self.eval_path, f'sta_{self.target_cut}_{self.eval_focus}')
