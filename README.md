@@ -103,6 +103,9 @@ Whether to save the cutoff summary sheet. If True, it will be saved at the same 
 ### **display** : ***None or list***
 The plots or tables to display in the evaluation report. If None, will display the default plots and tables. If a list, will only display those parts assigned in the list.
 
+### **file_name** : ***None or str***
+If not None, will use this as the name for the evaluation report. Otherwise use the default file name.
+
 ## **Evaluation Methods in Detail**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
 * time interval is greater than 1 second
