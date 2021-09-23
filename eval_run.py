@@ -13,7 +13,7 @@ cwd = os.getcwd()
 
 if sta_eval_run.machine == "HPC":
     if 'mbd' in sta_eval_run.eval_alpha_dict:
-        mem = '6G'
+        mem = '8G'
     else:
         mem = '4G'
     
@@ -23,7 +23,7 @@ if sta_eval_run.machine == "HPC":
 #SBATCH --error={sta_eval_run.log_path}/%A-%a-%x.error
 #SBATCH --mem-per-cpu={mem} --ntasks=1
 #SBATCH --time=30:00
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=2
 #SBATCH --array=0-{sta_eval_run.njobs}
 srun -l python3 {cwd}/eval_map.py {sta_input}'''
 
