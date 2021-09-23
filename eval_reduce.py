@@ -67,8 +67,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
     def html_report(self):
         px.defaults.template = 'seaborn'
-        report_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
-                                self.start_date, self.end_date]) + '.html'
+        if self.file_name is None:
+            report_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
+                                    self.start_date, self.end_date]) + '.html'
+        else:
+            report_name = self.file_name
         with open(os.path.join(self.eval_path, report_name), 'w') as f:
             f.write('''<html>\n<head><meta charset="utf-8" /></head>\n<body>\n''')
 
@@ -93,28 +96,31 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 f.write(table2 + '\n')
 
             # sta cutoff summary
-            if ('cutoff_summary' in self.display) or display_all:
+            if ('cutoff_summary' in self.display) or display_all or self.save_summary:
                 table3 = self.sta_cutoff_summary_html()
-                f.write(table3 + '\n')
+                if ('cutoff_summary' in self.display) or display_all:
+                    f.write(table3 + '\n')
             
-            if (self.eval_focus in ['ret', 'mixed']) or ('group_performance' in self.display):
-                # performance by side
-                f.write("<h2>performance for different side</h2>" + "\n")
-                figs = self.performance_by_side_html()
-                f.write(figs + '\n')
-                # performance by price group
-                f.write("<h2>performance for different price group</h2>" + "\n")
-                figs = self.performance_by_price_group_html()
-                f.write(figs + '\n')
-            if (self.eval_focus in ['oppo', 'mixed']) or ('group_oppo' in self.display):
-                # opportunities by side
-                f.write("<h2>opportunities for different side</h2>" + "\n")
-                figs = self.opportunities_by_side_html()
-                f.write(figs + '\n')
-                # performance by price group
-                f.write("<h2>opportunities for different price group</h2>" + "\n")
-                figs = self.opportunities_by_price_group_html()
-                f.write(figs + '\n')
+            if (self.eval_focus in ['ret', 'mixed']):
+                if ('group_performance' in self.display) or display_all:
+                    # performance by side
+                    f.write("<h2>performance for different side</h2>" + "\n")
+                    figs = self.performance_by_side_html()
+                    f.write(figs + '\n')
+                    # performance by price group
+                    f.write("<h2>performance for different price group</h2>" + "\n")
+                    figs = self.performance_by_price_group_html()
+                    f.write(figs + '\n')
+            if (self.eval_focus in ['oppo', 'mixed']):
+                if ('group_oppo' in self.display) or display_all:
+                    # opportunities by side
+                    f.write("<h2>opportunities for different side</h2>" + "\n")
+                    figs = self.opportunities_by_side_html()
+                    f.write(figs + '\n')
+                    # performance by price group
+                    f.write("<h2>opportunities for different price group</h2>" + "\n")
+                    figs = self.opportunities_by_price_group_html()
+                    f.write(figs + '\n')
 
             # daily yHatAvg
             if ('daily_hurdle' in self.display) or display_all:
@@ -122,27 +128,31 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 figs = self.daily_yHatHurdle_html()
                 f.write(figs + '\n')
 
-            if (self.eval_focus in ['ret', 'mixed']) or ('monthly_return' in self.display):
-                # monthly realized return
-                f.write("<h2>monthly realized return</h2>" + "\n")
-                figs = self.monthly_realized_return_html()
-                f.write(figs + '\n')
-            if (self.eval_focus in ['oppo', 'mixed']) or ('monthly_oppo' in self.display):
-                # monthly realized return
-                f.write("<h2>monthly number of opportunities</h2>" + "\n")
-                figs = self.monthly_opportunities_html()
-                f.write(figs + '\n')
+            if (self.eval_focus in ['ret', 'mixed']):
+                if ('monthly_return' in self.display) or display_all:
+                    # monthly realized return
+                    f.write("<h2>monthly realized return</h2>" + "\n")
+                    figs = self.monthly_realized_return_html()
+                    f.write(figs + '\n')
+            if (self.eval_focus in ['oppo', 'mixed']):
+                if ('monthly_oppo' in self.display) or display_all:
+                    # monthly realized return
+                    f.write("<h2>monthly number of opportunities</h2>" + "\n")
+                    figs = self.monthly_opportunities_html()
+                    f.write(figs + '\n')
 
-            if (self.eval_focus in ['ret', 'mixed']) or ('daily_return' in self.display):
-                # daily realized return
-                f.write("<h2>daily realized return</h2>" + "\n")
-                figs = self.daily_realized_return_html()
-                f.write(figs + '\n')
-            if (self.eval_focus in ['oppo', 'mixed']) or ('daily_oppo' in self.display):
-                # daily realized return
-                f.write("<h2>daily number of opportunities</h2>" + "\n")
-                figs = self.daily_opportunities_html()
-                f.write(figs + '\n')
+            if (self.eval_focus in ['ret', 'mixed']):
+                if ('daily_return' in self.display) or display_all:
+                    # daily realized return
+                    f.write("<h2>daily realized return</h2>" + "\n")
+                    figs = self.daily_realized_return_html()
+                    f.write(figs + '\n')
+            if (self.eval_focus in ['oppo', 'mixed']):
+                if ('daily_oppo' in self.display) or display_all:
+                    # daily realized return
+                    f.write("<h2>daily number of opportunities</h2>" + "\n")
+                    figs = self.daily_opportunities_html()
+                    f.write(figs + '\n')
 
             # intraday realized return
             if ('intraday_return' in self.display) or display_all:
@@ -512,7 +522,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
 
         if self.eval_focus == 'oppo':
             underlying_ls = ['countOppo']
-        elif self.eval_focus == 'ret':
+        elif (self.eval_focus == 'ret') and (not self.use_meta):
             underlying_ls = ['vwActualRetAvg']
         else:
             underlying_ls = ['countOppo', 'vwActualRetAvg']
@@ -527,8 +537,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
         df_total.rename(columns={'topPercent':'topPercent(%)'}, inplace=True)
 
         if self.save_summary:
-            summary_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
-                                     self.start_date, self.end_date]) + '.csv'
+            if self.file_name is None:
+                summary_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
+                                        self.start_date, self.end_date]) + '.csv'
+            else:
+                summary_name = self.file_name
             df_total.to_csv(os.path.join(self.eval_path, summary_name), index=None)
         
         for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','availNtl', 'countOppo', 'topPercent(%)'] + \

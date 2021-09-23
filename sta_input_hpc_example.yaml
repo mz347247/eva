@@ -25,13 +25,13 @@ eval_alpha:
     pool_name: sta_alpha_eq_cn
     namespace: sta_90_1_1_1_mbd
 eval_focus: ret # ret, oppo, mixed
-use_meta: True
+use_meta: False
 target_return: actualRet90s
-target_cut: top5p
+target_cut: top150
 compute_ret: False
 lookback_window: 180
 save_path: /home/marlowe_zhong/sta_eval/sta_eval_v4
-delete_stats: True
+delete_stats: False
 log_path: /home/marlowe_zhong/STA_evaluation/logs
 save_summary: True
 display:  # ~
@@ -48,3 +48,4 @@ display:  # ~
   # - daily_oppo
   # - intraday_return
   # - intraday_oppo
+file_name: ~
