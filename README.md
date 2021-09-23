@@ -19,6 +19,7 @@
 ### Requirements
 * python >= 3.6
 * pandas >= 0.25.0
+* plotly >= 5.3.0
 * update your dfs api to jdfs >= 1.1.0. You can set up the dfs following the instruction in this [link](https://github.com/study-int/dfs_sh_client).
 * make sure you can use git via ssh keys
 
@@ -115,6 +116,7 @@ The plots or tables to display in the evaluation report. If None, will display t
 * daily_oppo
 * intraday_return
 * intraday_oppo
+* alpha_decay
 
 ### **file_name** : ***None or str***
 If not None, will use this as the name for the evaluation report. Otherwise use the default file name.

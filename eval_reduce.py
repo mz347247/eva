@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from eval import StaAlphaEval
 import shutil
+import re
 
 import yaml
 
@@ -25,6 +26,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
     def __init__(self, sta_input):
         super().__init__(sta_input)
 
+        try:
+            self.target_horizon = int(re.search(r"\d+", self.target_ret).group(0))
+        except (AttributeError, ValueError):
+            raise ValueError(f"Invalid Input target_ret: {self.target_ret}") 
+
         self.pdf_width = 30
         self.html_width = 1400
         self.template = 'seaborn'
@@ -35,7 +41,8 @@ class StaAlphaEvalReduce(StaAlphaEval):
         with Pool(16) as p:
             self.daily_stat = pd.concat(p.map(read_pkl, glob(f"{self.cutoff_path}/daily/*.pkl")), ignore_index=True)
 
-        for col in ['yHatHurdle','yHatAvg', 'actualRetAvg', 'vwActualRetAvg']:
+        ret_cols = [col for col in self.daily_stat if 'vwActualRet' in col]
+        for col in ['yHatHurdle','yHatAvg', 'actualRetAvg'] + ret_cols:
             self.daily_stat[col] = self.daily_stat[col] * 10000
         self.daily_stat['datetime'] = pd.to_datetime(self.daily_stat['date'].astype('str'))
         self.daily_stat['month'] = self.daily_stat['date'].map(lambda x:str(x)[:6])
@@ -164,6 +171,11 @@ class StaAlphaEvalReduce(StaAlphaEval):
             if display_all or ('intraday_oppo' in self.display):
                 f.write("<h2>intraday average oppo. across minutes since open</h2>" + "\n")
                 figs = self.intraday_opportunities_html()
+                f.write(figs + '\n')
+            
+            if display_all or ('alpha_decay' in self.display):
+                f.write("<h2>alpha realized return decay</h2>" + "\n")
+                figs = self.alpha_decay_html()
                 f.write(figs + '\n')
             
             f.write('''\n</body>\n</html>''')
@@ -804,6 +816,38 @@ class StaAlphaEvalReduce(StaAlphaEval):
                                  range=(-5,240),
                                  rangeslider_visible=True)
                 fig.update_yaxes(zeroline=True, zerolinewidth=2, zerolinecolor='grey')
+                reports.append(self.to_html(fig))
+        
+        return '\n'.join(reports)
+    
+    def alpha_decay_html(self):
+        reports = []
+        ret_cols = [col for col in self.daily_stat.columns if 'vwActualRet' in col]
+        df_stats = self.daily_stat.groupby(['exchange','side','sta_cat'], observed=True)[['vwActualRetAvg']].first()
+        for col in ret_cols:
+            df_stats[col] = (self.daily_stat.groupby(['exchange','side','sta_cat'], observed=True)
+                                            .apply(lambda x: weighted_average(x[col], weights=x['availNtlSum'])))
+        df_stats = df_stats.reset_index()
+
+        df_stats = df_stats.melt(id_vars=['exchange','side','sta_cat'], value_vars=ret_cols, 
+                                 var_name="horizon", value_name='return')
+        df_stats['horizon'] = np.where(df_stats.horizon=='vwActualRetAvg', self.target_horizon, 
+                                       df_stats['horizon'].str[14:-1]).astype(int)
+        df_stats.sort_values(['sta_cat', 'horizon'], inplace=True)
+        for side in ['buy','sell']:
+            for ex in ['SH','SZ']:
+                df_hist = (df_stats.loc[(df_stats.side == side) & (df_stats.exchange == ex), ['horizon', 'sta_cat'] + ['return']].reset_index())
+                if len(df_hist) == 0:
+                    continue
+                
+                fig = px.line(df_hist, x='horizon', y='return', color='sta_cat', markers=True, height=600, width=self.html_width,
+                              labels={'horizon': 'time elapse (seconds)', 'return': 'return (bps)'},
+                              hover_data={'return': ':.2f'})
+                fig.update_layout(font_family='sans-serif',
+                                  title=dict(text=side+' side - '+ex+' - '+self.target_ret, x=0.5, yanchor='top',font_size=18),
+                                  legend=dict(title_text="", bgcolor="LightSteelBlue"))
+                fig.update_yaxes(zeroline=True, zerolinewidth=2, zerolinecolor='grey')
+                fig.update_xaxes(range=(0, self.target_horizon+5))
                 reports.append(self.to_html(fig))
         
         return '\n'.join(reports)

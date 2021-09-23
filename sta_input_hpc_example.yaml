@@ -35,17 +35,18 @@ delete_stats: False
 log_path: /home/marlowe_zhong/STA_evaluation/logs
 save_summary: True
 display:  # ~
-  # - all_summary
-  # - all_hist
-  # - cutoff_summary
+  - all_summary
+  - all_hist
+  - cutoff_summary
   - cutoff_summary_compact
-  # - group_performance
-  # - group_oppo
-  # - daily_hurdle
-  # - monthly_return
-  # - monthly_oppo
-  # - daily_return
-  # - daily_oppo
-  # - intraday_return
-  # - intraday_oppo
+  - group_performance
+  - group_oppo
+  - daily_hurdle
+  - monthly_return
+  - monthly_oppo
+  - daily_return
+  - daily_oppo
+  - intraday_return
+  - intraday_oppo
+  - alpha_decay
 file_name: ~

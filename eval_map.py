@@ -116,8 +116,13 @@ class StaAlphaEvalMap(StaAlphaEval):
                 df_md = _get_eva_md(df_md, self.target_horizon, self.lookback_window)
             else:
                 df_ret = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_{sta_type}/actual_return/{self.bench}/{date}.parquet', 
-                                                    'sta_md_eq_cn', f'sta_ret_{sta_type}')[['skey', 'date', 'ordering', 
-                                                                                          f'buyRet{self.target_horizon}s', f'sellRet{self.target_horizon}s']]
+                                                    'sta_md_eq_cn', f'sta_ret_{sta_type}')
+                used_cols = ['skey', 'date', 'ordering', f'buyRet{self.target_horizon}s', f'sellRet{self.target_horizon}s']
+                if (self.display is None) or ('alpha_decay' in self.display):
+                    ret_cols = [col for col in df_ret.columns if 'Ret' in col and int(re.search('\d+', col).group(0)) < self.target_horizon]
+                    used_cols += ret_cols
+                df_ret = df_ret[used_cols]
+
                 df_md = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_md_{sta_type}/{self.bench}/{date}.parquet', 
                                                     'sta_md_eq_cn', f'sta_md_{sta_type}')
                 df_md = pd.merge(df_md[['skey', 'date', 'time','datetime', 'ordering', 
@@ -142,6 +147,7 @@ class StaAlphaEvalMap(StaAlphaEval):
                                                   'sta_md_eq_cn', f'sta_md_{sta_type}')
                 df_alpha = pd.merge(df_alpha, meta[['skey', 'date', 'nticks_filter']], how='left', on=['skey', 'date'],
                                     validate='many_to_one')
+                del meta
 
             # TODO: modify this when we have SH mbd data
             # only compare SZ data if we compare mbd
@@ -157,7 +163,7 @@ class StaAlphaEvalMap(StaAlphaEval):
                 df_target = self.sta_reader.read_file(f'/sta_md_eq_cn/sta_ret_l2/target_return/IC/top240/{date}.parquet',
                                                        'sta_md_eq_cn', 'sta_ret_l2')
 
-            basic_cols = ['skey','date','time','exchange','mins_since_open',
+            basic_cols = ['skey','date','time','ordering','exchange','mins_since_open',
                           'cum_volume','cum_amount']
             if self.use_meta:
                 basic_cols.append('nticks_filter')
@@ -214,6 +220,9 @@ class StaAlphaEvalMap(StaAlphaEval):
                                     .reset_index(drop=True))
                     
                 df_cutoff['side'] = side
+                if (self.display is None) or ('alpha_decay' in self.display):
+                    side_ret_cols = [col for col in ret_cols if col.startswith(side)]
+                    df_cutoff = pd.merge(df_cutoff, df_alpha[['skey', 'date', 'ordering'] + side_ret_cols], how='left')
                 
                 stat_data_cutoff = (df_cutoff.groupby(['skey', 'exchange', 
                                                        'date', 'sta_cat'])[['sta','availNtl',self.target_ret,'top_percent']]
@@ -227,6 +236,11 @@ class StaAlphaEvalMap(StaAlphaEval):
                 stat_data_cutoff['vwActualRetAvg'] = (df_cutoff.groupby(['skey', 'exchange', 'date', 'sta_cat'])
                                                                .apply(lambda x: weighted_average(x[self.target_ret],
                                                                                                 weights=x['availNtl'])))
+                if (self.display is None) or ('alpha_decay' in self.display):
+                    for col in side_ret_cols:
+                        stat_data_cutoff[col.replace(f'{side}Ret', 'vwActualRetAvg')] = (df_cutoff.groupby(['skey', 'exchange', 'date', 'sta_cat'])
+                                                                                                .apply(lambda x: weighted_average(x[col],
+                                                                                                                weights=x['availNtl'])))
                 stat_data_cutoff = stat_data_cutoff.reset_index()
 
                 # # record the target return
@@ -239,6 +253,8 @@ class StaAlphaEvalMap(StaAlphaEval):
 
                 df_daily.append(stat_data)
                 df_intra.append(df_cutoff)
+
+        del df_alpha, df_side
 
         sta_ls_all += [(self.target_ret + "_" + sta_type) for sta_type in self.eval_alpha_dict.keys()]
 
@@ -361,10 +377,15 @@ def test():
     
     sta_input = '/home/marlowe/Marlowe/eva/sta_input_ps.yaml'
     sta_eval_run = StaAlphaEvalMap(sta_input)
-    sta_eval_run.generate_daily_sta_cutoff(20200701)
+    paths = sta_eval_run.stock_reader.list_dir('/com_md_eq_cn/mdbar1d_jq', 'com_md_eq_cn', 'mdbar1d_jq')
+    dates = []
+    for path in paths:
+        date = path.split("/")[-1].split(".")[0]
+        if (date >= sta_eval_run.start_date) and (date <= sta_eval_run.end_date):
+            dates.append(int(date))
+    sta_eval_run.generate_daily_sta_cutoff(dates[200])
     end_time = time.time()
     print(end_time - start_time)
 
 if __name__ == "__main__":
     main(sys.argv[1])
-    # test()
