@@ -78,7 +78,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
             report_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
                                     self.start_date, self.end_date]) + '.html'
         else:
-            report_name = self.file_name
+            report_name = self.file_name + '.html'
         with open(os.path.join(self.eval_path, report_name), 'w') as f:
             f.write('''<html>\n<head><meta charset="utf-8" /></head>\n<body>\n''')
 
@@ -553,7 +553,7 @@ class StaAlphaEvalReduce(StaAlphaEval):
                 summary_name = '_'.join([self.universe, self.eval_alpha[-1]['name'], self.target_cut, self.eval_focus, 
                                         self.start_date, self.end_date]) + '.csv'
             else:
-                summary_name = self.file_name
+                summary_name = self.file_name + '.csv'
             df_total.to_csv(os.path.join(self.eval_path, summary_name), index=None)
         
         for col in ['yHatAvg', 'yHatHurdle', 'vwActualRetAvg','availNtl', 'countOppo', 'topPercent(%)'] + \
