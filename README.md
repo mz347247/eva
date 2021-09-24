@@ -119,7 +119,7 @@ The plots or tables to display in the evaluation report. If None, will display t
 * alpha_decay
 
 ### **file_name** : ***None or str***
-If not None, will use this as the name for the evaluation report. Otherwise use the default file name.
+If not None, will use this as the name for the evaluation report. Otherwise use the default file name. (no need to add the filename extension)
 
 ## **Evaluation Methods in Detail**
 In the current evaluation system, we filter out independent opportunities so that for each two consecutive opportunities:
