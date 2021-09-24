@@ -15,7 +15,7 @@ if sta_eval_run.machine == "HPC":
     if 'mbd' in sta_eval_run.eval_alpha_dict:
         mem = '40G'
     else:
-        mem = '4G'
+        mem = '8G'
     
     map_sh = f'''#!/bin/sh
 #SBATCH --job-name=eval_map
